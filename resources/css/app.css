@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/*
+ | Tailwind v4 memindai file sumber untuk menemukan class yang dipakai.
+ | Semua markup VestLedger ada di app/Views.
+ */
+@source "../../app/Views";
+
+/*
+ | DaisyUI sebagai component layer (§30).
+ | Theme dapat ditambah/dikurangi di sini tanpa menyentuh business logic sama sekali —
+ | View hanya memakai class semantik DaisyUI (btn, card, table, badge, ...).
+ */
+@plugin "daisyui" {
+  themes: corporate --default, business --prefersdark, light, dark, emerald, night;
+}
+
+/*
+ | Utility khusus domain akuntansi.
+ | Angka uang & kuantitas harus rata kanan dan memakai tabular figures supaya
+ | digit antar baris sejajar dan mudah dibaca/diaudit.
+ */
+@layer components {
+  .num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Kolom tabel yang berisi angka */
+  .table th.num,
+  .table td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* Sembunyikan konten sampai Alpine siap, mencegah flash of unstyled content */
+[x-cloak] {
+  display: none !important;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+}
