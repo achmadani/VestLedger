@@ -119,17 +119,35 @@ final class DashboardTest extends CIUnitTestCase
     /**
      * Menu yang belum dibangun tidak boleh menjadi link aktif (mencegah 404).
      *
-     * Menu rujukan di sini harus selalu menunjuk phase yang BELUM selesai.
-     * Sebelumnya test ini memakai Neraca, dan menjadi usang begitu Phase 6
-     * mengaktifkannya — Saldo Awal (Phase 8) menggantikannya.
+     * Target diambil DARI konfigurasi menu, bukan ditulis tetap. Versi
+     * sebelumnya menyebut satu menu secara eksplisit dan menjadi usang setiap
+     * kali phase berikutnya mengaktifkannya — dua kali berturut-turut.
      */
     public function testUnbuiltMenuItemsAreNotRenderedAsLinks(): void
     {
-        $result = $this->actingAs($this->makeUser('owner_nav', 'owner'))->get('dashboard');
+        $disabled = [];
 
+        foreach ((new \Config\Navigation())->menu() as $group) {
+            foreach ($group['items'] as $item) {
+                if (! $item['enabled']) {
+                    $disabled[] = $item;
+                }
+            }
+        }
+
+        if ($disabled === []) {
+            $this->markTestSkipped('Seluruh menu sudah aktif; tidak ada yang perlu diuji.');
+        }
+
+        $result = $this->actingAs($this->makeUser('owner_nav', 'owner'))->get('dashboard');
         $result->assertOK();
-        $result->assertSee('Saldo Awal');
-        $result->assertDontSee('/accounting/opening-balance');
+
+        foreach ($disabled as $item) {
+            // Labelnya tetap tampil sebagai placeholder...
+            $result->assertSee($item['label']);
+            // ...tetapi rutenya tidak boleh menjadi tautan.
+            $result->assertDontSee($item['route']);
+        }
     }
 
     /**

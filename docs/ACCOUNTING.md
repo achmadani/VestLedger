@@ -239,6 +239,37 @@ diturunkan dari dimensi akun 1100 di buku besar (nilai) dan dari transaksi
 (jumlah lembar). Tabel `stock_positions` hanya menyimpan keadaan terkini dan
 dipakai saat transaksi berjalan, bukan untuk pelaporan historis.
 
+## Saldo awal
+
+Dipakai sekali, saat aplikasi mulai digunakan oleh investor yang sudah memiliki
+kas dan posisi saham sebelumnya (§19).
+
+```
+Dr Kas (1000)               per rekening sekuritas
+Dr Portofolio Saham (1100)  per rekening + saham
+    Cr Modal Disetor (3000)      nilai yang dimasukkan pengguna
+    Cr Laba Ditahan (3100)       ANGKA PENYEIMBANG = aset − modal disetor
+```
+
+**Laba ditahan tidak dimasukkan pengguna.** Meminta pengguna mengetiknya sendiri
+hanya akan melahirkan saldo awal yang tidak balance, padahal angka itu memang
+turunan: pemilik tahu berapa asetnya dan berapa yang pernah ia setorkan, dan
+selisihnya adalah akumulasi laba masa lalu. Bila modal melebihi aset, laba
+ditahan menjadi negatif — itu akumulasi rugi, dan tetap sah.
+
+Dua penjagaan:
+
+1. Saldo awal harus bertanggal **sebelum seluruh transaksi**; jika tidak, ia
+   bukan lagi saldo *awal*.
+2. Saldo awal hanya dapat dihapus selama **belum ada transaksi sama sekali**.
+   Begitu ada transaksi, average cost-nya sudah dibangun di atas posisi awal,
+   dan menghapus dasarnya akan membuat realized gain/loss yang terlanjur
+   dicatat menjadi salah. Penghapusan pun lewat jurnal pembalik, bukan delete.
+
+Posisi dari saldo awal ikut diperhitungkan dalam seluruh laporan historis:
+`PositionSnapshotRepository` menggabungkan kuantitas dari `stock_transactions`
+**dan** dari `opening_balances`.
+
 ## Periode akuntansi
 
 Setiap transaksi harus jatuh pada periode yang berstatus `open`. Dua aturan

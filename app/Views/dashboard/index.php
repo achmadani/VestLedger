@@ -61,6 +61,46 @@ $typeLabels = [
     ]) ?>
 </div>
 
+<?php
+// Komposisi portofolio menurut nilai, memakai market value bila ada.
+$composition = [];
+
+foreach ($holdings as $h) {
+    $value = $h['has_price'] ? $h['market_value'] : $h['book_value'];
+
+    $composition[] = [
+        'label'     => $h['ticker'],
+        'sublabel'  => $h['has_price'] ? null : 'dinilai pada book value — harga belum diinput',
+        'value'     => $value->toFloat(),
+        'formatted' => fmt_rupiah($value->toFloat()),
+    ];
+}
+?>
+
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-3 mb-4">
+    <div class="lg:col-span-2">
+        <?= component('card', [
+            'title'    => 'Perkembangan Aset ' . $year,
+            'subtitle' => 'Saldo akhir tiap bulan menurut NILAI BUKU, bukan market value',
+            'body'     => component('chart_area', ['series' => $series, 'title' => 'Perkembangan aset ' . $year])
+                . '<p class="text-[11px] text-base-content/50 mt-2">'
+                . 'Nilai buku dipakai karena market value tiap akhir bulan memerlukan harga historis '
+                . 'yang belum tentu diinput; memakai harga terbaru akan membuat grafik masa lalu '
+                . 'berubah setiap kali harga hari ini diperbarui.</p>',
+        ]) ?>
+    </div>
+
+    <div>
+        <?= component('card', [
+            'title'    => 'Komposisi Portofolio',
+            'subtitle' => 'Lima posisi terbesar menurut nilai',
+            'body'     => $composition === []
+                ? component('empty_state', ['title' => 'Belum ada posisi', 'icon' => 'chart'])
+                : component('chart_bars', ['items' => $composition]),
+        ]) ?>
+    </div>
+</div>
+
 <div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
     <?php
     $secRows = '';

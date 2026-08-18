@@ -9,6 +9,7 @@ use App\Models\CashTransactionModel;
 use App\Models\DividendTransactionModel;
 use App\Models\JournalEntryModel;
 use App\Models\JournalLineModel;
+use App\Models\OpeningBalanceModel;
 use App\Models\MarketPriceModel;
 use App\Models\SecuritiesAccountModel;
 use App\Models\SecurityModel;
@@ -21,6 +22,7 @@ use App\Services\Accounting\AuditLogger;
 use App\Services\Accounting\ChartOfAccountsService;
 use App\Services\Accounting\DocumentNumberService;
 use App\Services\Accounting\JournalPoster;
+use App\Services\Accounting\OpeningBalanceService;
 use App\Services\MasterData\SecurityService;
 use App\Services\MasterData\StockService;
 use App\Services\Portfolio\MarketPriceService;
@@ -114,6 +116,22 @@ class Services extends BaseService
             new AccountingPeriodModel(),
             static::accountingPeriod(),
             static::documentNumber(),
+        );
+    }
+
+    public static function openingBalance(bool $getShared = true): OpeningBalanceService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('openingBalance');
+        }
+
+        return new OpeningBalanceService(
+            new OpeningBalanceModel(),
+            new StockPositionModel(),
+            new SecuritiesAccountModel(),
+            new StockModel(),
+            static::journalPoster(),
+            static::auditLogger(),
         );
     }
 

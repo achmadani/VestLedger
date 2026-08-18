@@ -20,8 +20,8 @@ Riwayat perubahan ada di **[CHANGELOG.md](CHANGELOG.md)**.
 | 3+4 | Transaction & Accounting Engine — transaksi, jurnal, buku besar, reversal, audit trail, posisi & average cost | ✅ Selesai |
 | 5 | Portfolio Engine — harga pasar, unrealized G/L, tampilan portofolio | ✅ Selesai |
 | 6 | Reporting — neraca, laba rugi, arus kas, trial balance, bulanan, tahunan | ⬜ |
-| 7 | Dashboard & UI — chart, filter, penyempurnaan responsive | ⬜ |
-| 8 | Opening Balance & Closing Period | ⬜ |
+| 7 | Dashboard & UI — chart, filter, penyempurnaan responsive | ✅ Selesai |
+| 8 | Opening Balance & Closing Period | ✅ Selesai |
 | 9 | Testing, Security Review & Deployment | ⬜ |
 
 Menu untuk phase yang belum dibangun tampil sebagai placeholder non-aktif di
@@ -193,6 +193,11 @@ Cakupan test:
   arus kas, saldo akhir bulan menjadi saldo awal bulan berikutnya, dan total
   tahunan sama dengan jumlah bulanannya.
 - **`tests/feature/ReportUiTest.php`** — seluruh halaman laporan.
+- **`tests/database/OpeningBalanceTest.php`** — contoh terhitung §19, laba
+  ditahan sebagai angka penyeimbang, penolakan saldo awal yang bertanggal
+  setelah transaksi, dan penghapusan lewat jurnal pembalik.
+- **`tests/feature/OpeningBalanceUiTest.php`** — form saldo awal, otorisasi
+  `opening.manage`, dan grafik dashboard yang dirender sebagai SVG tanpa library.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).

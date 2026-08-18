@@ -104,6 +104,10 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
         $routes->get('ledger', 'Accounting\Ledger::index', ['filter' => 'permission:report.view']);
         $routes->get('trial-balance', 'Reports::trialBalance', ['filter' => 'permission:report.view']);
 
+        $routes->get('opening-balance', 'Accounting\OpeningBalance::index', ['filter' => 'permission:opening.manage']);
+        $routes->post('opening-balance', 'Accounting\OpeningBalance::store', ['filter' => 'permission:opening.manage']);
+        $routes->post('opening-balance/reset', 'Accounting\OpeningBalance::reset', ['filter' => 'permission:opening.manage']);
+
         $routes->get('periods', 'Accounting\Periods::index', ['filter' => 'permission:report.view']);
         $routes->post('periods/generate', 'Accounting\Periods::generate', ['filter' => 'permission:period.manage']);
         $routes->post('periods/(:num)/close', 'Accounting\Periods::close/$1', ['filter' => 'permission:period.manage']);

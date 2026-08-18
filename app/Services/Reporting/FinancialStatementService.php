@@ -287,6 +287,82 @@ class FinancialStatementService
     }
 
     /**
+     * Saldo kas dan book value portofolio pada akhir setiap bulan (§31 chart).
+     *
+     * Dihitung dengan SATU query yang mengelompokkan mutasi per bulan, lalu
+     * diakumulasikan di PHP — bukan 12 query terpisah, dan bukan pula 12
+     * pemanggilan potret portofolio yang masing-masing menembak database
+     * berkali-kali (§34).
+     *
+     * Yang disajikan adalah NILAI BUKU, bukan market value: menghitung market
+     * value tiap akhir bulan memerlukan harga historis tiap saham yang belum
+     * tentu diinput, dan diam-diam memakai harga terbaru akan membuat grafik
+     * masa lalu berubah setiap kali harga hari ini diperbarui.
+     *
+     * @return list<array{month:int, label:string, cash:Money, portfolio:Money, total:Money}>
+     */
+    public function monthlyAssetSeries(int $year): array
+    {
+        $cashId      = $this->accounts->idFor(AccountCode::Cash);
+        $portfolioId = $this->accounts->idFor(AccountCode::StockPortfolio);
+
+        // Saldo yang sudah terbentuk SEBELUM tahun ini menjadi titik awal.
+        $opening = db_connect()->query(
+            'SELECT jl.account_id, SUM(jl.debit) - SUM(jl.credit) AS balance
+             FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id
+             WHERE jl.account_id IN (?, ?) AND je.entry_date < ?
+             GROUP BY jl.account_id',
+            [$cashId, $portfolioId, $year . '-01-01']
+        )->getResultArray();
+
+        $running = [$cashId => Money::zero(), $portfolioId => Money::zero()];
+
+        foreach ($opening as $row) {
+            $running[(int) $row['account_id']] = Money::of((string) $row['balance']);
+        }
+
+        $movements = db_connect()->query(
+            'SELECT MONTH(je.entry_date) AS m, jl.account_id,
+                    SUM(jl.debit) - SUM(jl.credit) AS movement
+             FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id
+             WHERE jl.account_id IN (?, ?) AND je.entry_date >= ? AND je.entry_date <= ?
+             GROUP BY MONTH(je.entry_date), jl.account_id',
+            [$cashId, $portfolioId, $year . '-01-01', $year . '-12-31']
+        )->getResultArray();
+
+        $byMonth = [];
+
+        foreach ($movements as $row) {
+            $byMonth[(int) $row['m']][(int) $row['account_id']] = Money::of((string) $row['movement']);
+        }
+
+        $names = [
+            1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+
+        $series = [];
+
+        for ($month = 1; $month <= 12; $month++) {
+            foreach ([$cashId, $portfolioId] as $accountId) {
+                if (isset($byMonth[$month][$accountId])) {
+                    $running[$accountId] = $running[$accountId]->add($byMonth[$month][$accountId]);
+                }
+            }
+
+            $series[] = [
+                'month'     => $month,
+                'label'     => $names[$month],
+                'cash'      => $running[$cashId],
+                'portfolio' => $running[$portfolioId],
+                'total'     => $running[$cashId]->add($running[$portfolioId]),
+            ];
+        }
+
+        return $series;
+    }
+
+    /**
      * @param list<string> $counterparts kode akun lawan
      */
     private function classify(array $counterparts): string

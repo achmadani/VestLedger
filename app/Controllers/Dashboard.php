@@ -38,6 +38,8 @@ class Dashboard extends BaseController
             'snapshot'  => $snapshot,
             'recent'    => $recent['rows'],
             'holdings'  => array_slice($holdings, 0, 5),
+            'series'    => service('financialStatements')->monthlyAssetSeries((int) date('Y')),
+            'year'      => (int) date('Y'),
         ]);
     }
 }

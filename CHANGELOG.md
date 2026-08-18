@@ -14,6 +14,31 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+## [0.7.0] — 2026-08-18 — Phase 7 & 8: Dashboard, Chart, dan Saldo Awal
+
+### Ditambahkan
+- Grafik perkembangan aset dan komposisi portofolio di dashboard, digambar
+  sebagai SVG di sisi server tanpa library chart apa pun. Grafik memakai token
+  warna DaisyUI sehingga ikut berubah saat tema diganti.
+- Saldo awal (§19): kas per rekening, posisi saham dengan book value, dan modal
+  disetor. Laba ditahan dihitung sebagai angka penyeimbang sehingga saldo awal
+  dijamin balance. Penghapusan lewat jurnal pembalik, dan hanya selama belum ada
+  transaksi.
+
+### Diperbaiki
+- **Posisi dari saldo awal tidak terlihat oleh laporan historis.** Kuantitas
+  hanya dihitung dari `stock_transactions`, sehingga posisi awal hilang dari
+  seluruh laporan meskipun book value-nya tercatat di buku besar.
+- Test navigasi kini membaca konfigurasi menu alih-alih menyebut satu menu
+  secara tetap; versi sebelumnya menjadi usang dua kali berturut-turut karena
+  phase berikutnya mengaktifkan menu yang dirujuknya.
+
+### Catatan
+- Grafik menyajikan NILAI BUKU, bukan market value. Market value tiap akhir
+  bulan memerlukan harga historis yang belum tentu diinput, dan memakai harga
+  terbaru akan membuat grafik masa lalu berubah setiap kali harga hari ini
+  diperbarui.
+
 ## [0.6.0] — 2026-08-18 — Phase 6: Reporting
 
 ### Ditambahkan

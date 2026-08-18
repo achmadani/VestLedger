@@ -51,17 +51,33 @@ class PositionSnapshotRepository
             $bookValues[$row['securities_account_id'] . ':' . $row['stock_id']] = (string) $row['book_value'];
         }
 
-        // Quantity: pembelian menambah, penjualan mengurangi. Transaksi yang
-        // sudah dibatalkan berstatus 'reversed' dan otomatis tidak terhitung —
-        // sejalan dengan jurnal pembaliknya yang meniadakan book value.
+        // Quantity berasal dari DUA sumber: saldo awal dan transaksi.
+        //
+        // Menghitung dari transaksi saja akan membuat posisi yang berasal dari
+        // saldo awal hilang sama sekali dari seluruh laporan historis, meskipun
+        // book value-nya tercatat rapi di buku besar.
+        //
+        // Transaksi yang sudah dibatalkan berstatus 'reversed' dan otomatis
+        // tidak terhitung — sejalan dengan jurnal pembaliknya yang meniadakan
+        // book value. Saldo awal yang dihapus barisnya ikut terhapus.
         $quantities = $db->query(
-            "SELECT st.securities_account_id, st.stock_id,
-                    SUM(CASE WHEN st.type = 'buy' THEN st.quantity ELSE -st.quantity END) AS quantity
-             FROM stock_transactions st
-             WHERE st.status = 'posted' AND st.transaction_date <= ?
-             GROUP BY st.securities_account_id, st.stock_id
+            "SELECT securities_account_id, stock_id, SUM(quantity) AS quantity
+             FROM (
+                 SELECT st.securities_account_id, st.stock_id,
+                        CASE WHEN st.type = 'buy' THEN st.quantity ELSE -st.quantity END AS quantity
+                 FROM stock_transactions st
+                 WHERE st.status = 'posted' AND st.transaction_date <= ?
+
+                 UNION ALL
+
+                 SELECT ob.securities_account_id, ob.stock_id, ob.quantity
+                 FROM opening_balances ob
+                 WHERE ob.kind = 'stock' AND ob.as_of_date <= ?
+                   AND ob.securities_account_id IS NOT NULL AND ob.stock_id IS NOT NULL
+             ) movements
+             GROUP BY securities_account_id, stock_id
              HAVING quantity <> 0",
-            [$date]
+            [$date, $date]
         )->getResultArray();
 
         if ($quantities === []) {

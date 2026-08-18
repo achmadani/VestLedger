@@ -64,7 +64,7 @@ class Navigation extends BaseConfig
                     ['label' => 'Buku Besar', 'route' => '/accounting/ledger', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Neraca Saldo', 'route' => '/accounting/trial-balance', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Periode Akuntansi', 'route' => '/accounting/periods', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
-                    ['label' => 'Saldo Awal', 'route' => '/accounting/opening-balance', 'permission' => 'opening.manage', 'enabled' => false, 'phase' => 'Phase 8'],
+                    ['label' => 'Saldo Awal', 'route' => '/accounting/opening-balance', 'permission' => 'opening.manage', 'enabled' => true, 'phase' => null],
                 ],
             ],
             [
