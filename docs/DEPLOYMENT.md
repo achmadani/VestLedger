@@ -180,6 +180,10 @@ Checklist sebelum menyerahkan aplikasi:
 - [ ] Membuka `https://domain-anda.com/app/Config/App.php` menghasilkan 404
 - [ ] Membuka `https://domain-anda.com/writable/logs/` menghasilkan 403/404
 - [ ] Membuka `https://domain-anda.com/.env` menghasilkan 403/404
+- [ ] **`session.savePath` TIDAK di-set di `.env`.** Nilai `.env` selalu berupa
+      string; menulis `null` di sana membuat file session tersimpan di dalam
+      `public/` dan dapat diunduh lewat browser. Pastikan `writable/session/`
+      terisi setelah ada yang login, dan `public/null/` tidak pernah terbentuk
 - [ ] HTTPS aktif dan `app.forceGlobalSecureRequests = true`
 - [ ] `cookie.secure = true`
 - [ ] Route `/register` tidak dapat diakses

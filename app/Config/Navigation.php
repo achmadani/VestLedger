@@ -36,10 +36,10 @@ class Navigation extends BaseConfig
                 'label' => 'Portofolio',
                 'icon'  => 'chart',
                 'items' => [
-                    ['label' => 'Portofolio Global', 'route' => '/portfolio', 'permission' => 'portfolio.view', 'enabled' => false, 'phase' => 'Phase 5'],
-                    ['label' => 'Per Sekuritas', 'route' => '/portfolio/securities', 'permission' => 'portfolio.view', 'enabled' => false, 'phase' => 'Phase 5'],
-                    ['label' => 'Per Saham', 'route' => '/portfolio/tickers', 'permission' => 'portfolio.view', 'enabled' => false, 'phase' => 'Phase 5'],
-                    ['label' => 'Harga Pasar', 'route' => '/market-prices', 'permission' => 'price.manage', 'enabled' => false, 'phase' => 'Phase 5'],
+                    ['label' => 'Portofolio Global', 'route' => '/portfolio', 'permission' => 'portfolio.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Per Sekuritas', 'route' => '/portfolio/securities', 'permission' => 'portfolio.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Per Saham', 'route' => '/portfolio/tickers', 'permission' => 'portfolio.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Harga Pasar', 'route' => '/market-prices', 'permission' => 'price.manage', 'enabled' => true, 'phase' => null],
                 ],
             ],
             [

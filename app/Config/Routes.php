@@ -68,6 +68,15 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
         $routes->post('accounts/(:num)/delete', 'Master\Accounts::delete/$1', ['filter' => 'permission:masterdata.manage']);
     });
 
+    // ---------------------------------------------------------------- Portofolio
+    $routes->get('portfolio', 'Portfolio::index', ['filter' => 'permission:portfolio.view']);
+    $routes->get('portfolio/securities', 'Portfolio::securities', ['filter' => 'permission:portfolio.view']);
+    $routes->get('portfolio/tickers', 'Portfolio::tickers', ['filter' => 'permission:portfolio.view']);
+
+    $routes->get('market-prices', 'MarketPrices::index', ['filter' => 'permission:portfolio.view']);
+    $routes->post('market-prices', 'MarketPrices::store', ['filter' => 'permission:price.manage']);
+    $routes->post('market-prices/(:num)/delete', 'MarketPrices::delete/$1', ['filter' => 'permission:price.manage']);
+
     // ---------------------------------------------------------------- Transaksi
     $routes->group('transactions', static function (RouteCollection $routes): void {
         $routes->get('/', 'Transactions\Index::index', ['filter' => 'permission:transaction.view']);

@@ -234,6 +234,26 @@ reversal di periode terbuka, bukan dengan mengubah data lama (§26, §40.8).
 
 ## Yang tidak dijurnal
 
-- **Unrealized gain/loss** — hanya dihitung untuk pelaporan dari
-  `market_prices` terbaru. Harga pasar tidak pernah mengubah book cost historis (§14).
-- **Perubahan harga pasar** itu sendiri.
+- **Unrealized gain/loss** — hanya dihitung untuk pelaporan dari `market_prices`
+  terbaru, dan tidak pernah masuk laba rugi periode berjalan (§13, §40.2).
+- **Harga pasar** itu sendiri. Mencatat harga tidak menghasilkan satu pun baris
+  jurnal dan tidak mengubah book cost historis (§14).
+
+### Posisi tanpa harga pasar
+
+Posisi yang belum memiliki harga **tidak** diperlakukan seolah market value-nya
+sama dengan book value. Menyamakannya berarti mengklaim unrealized-nya nol,
+padahal yang benar adalah *belum diketahui*.
+
+Posisi seperti itu dilaporkan terpisah (`unpriced_count` dan
+`unpriced_book_value`), ditandai dengan peringatan di setiap halaman portofolio,
+dan dinilai pada book value saat menghitung net worth — dengan fakta itu
+dinyatakan terbuka, bukan disembunyikan.
+
+### Average cost gabungan per ticker
+
+Halaman "Portofolio per Saham" menampilkan average cost gabungan lintas
+sekuritas (`total book value / total quantity`). Angka ini **khusus untuk
+pelaporan**. Dalam pencatatan akuntansi, book cost tiap sekuritas tetap terpisah
+dan tidak pernah dicampur (§5) — penjualan di satu sekuritas selalu memakai
+average cost sekuritas itu sendiri.

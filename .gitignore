@@ -143,3 +143,8 @@ npm-debug.log*
 # Konfigurasi lokal editor/preview
 /.claude/launch.json
 _tmp*
+
+# File session TIDAK BOLEH berada di bawah public/ maupun masuk repository.
+# Direktori ini pernah terbentuk karena `session.savePath = null` di .env dibaca
+# sebagai string "null"; lihat catatan di .env.
+/public/null/

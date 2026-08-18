@@ -29,6 +29,7 @@ trait TruncatesDomainTables
         'dividend_transactions',
         'journal_entries',
         'stock_positions',
+        'market_prices',
         'audit_logs',
         'securities_accounts',
         'securities',

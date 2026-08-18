@@ -16,7 +16,7 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 | 1 | Foundation — CI4, autentikasi, design system, tema | ✅ Selesai |
 | 2 | Master Data — sekuritas, saham, CoA, periode akuntansi | ✅ Selesai |
 | 3+4 | Transaction & Accounting Engine — transaksi, jurnal, buku besar, reversal, audit trail, posisi & average cost | ✅ Selesai |
-| 5 | Portfolio Engine — harga pasar, unrealized G/L, tampilan portofolio | ⬜ |
+| 5 | Portfolio Engine — harga pasar, unrealized G/L, tampilan portofolio | ✅ Selesai |
 | 6 | Reporting — neraca, laba rugi, arus kas, trial balance, bulanan, tahunan | ⬜ |
 | 7 | Dashboard & UI — chart, filter, penyempurnaan responsive | ⬜ |
 | 8 | Opening Balance & Closing Period | ⬜ |
@@ -176,6 +176,13 @@ Cakupan test:
   yang boleh dibatalkan.
 - **`tests/feature/TransactionUiTest.php`** — alur beli→jual lewat HTTP, buku
   besar tetap balance, dan otorisasi tiap rute transaksi.
+- **`tests/database/PortfolioTest.php`** — contoh terhitung §13, unrealized tidak
+  pernah masuk laba periode berjalan, harga pasar tidak menghasilkan jurnal,
+  harga terbaru pada/atau sebelum tanggal laporan, dan agregasi per ticker.
+- **`tests/feature/PortfolioUiTest.php`** — halaman portofolio, input harga
+  massal, dan otorisasi `price.manage`.
+- **`tests/unit/SecurityConfigTest.php`** — penjaga konfigurasi keamanan; lihat
+  catatan di bawah.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).
@@ -247,6 +254,18 @@ Daftar tema didefinisikan di dua tempat yang harus sinkron:
 Setelah mengubahnya, jalankan `make build`.
 
 ---
+
+## Catatan keamanan yang pernah terjadi
+
+`session.savePath = null` di `.env` **tidak** berarti "kosong". Nilai `.env`
+selalu dibaca sebagai string, sehingga CI4 memakai direktori relatif bernama
+`null` di bawah direktori kerja — yaitu `public/`. Akibatnya file session berada
+**di dalam web root** dan dapat diunduh langsung lewat browser.
+
+Kesalahan ini pernah aktif di proyek ini dan file session sempat ikut ter-commit.
+Perbaikannya: baris tersebut dihapus dari `.env` sehingga berlaku default
+`WRITEPATH . 'session'`. `tests/unit/SecurityConfigTest.php` sekarang menjaga
+agar `savePath` tidak pernah lagi berada di bawah `public/`.
 
 ## Deployment
 

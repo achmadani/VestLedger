@@ -9,6 +9,7 @@ use App\Models\CashTransactionModel;
 use App\Models\DividendTransactionModel;
 use App\Models\JournalEntryModel;
 use App\Models\JournalLineModel;
+use App\Models\MarketPriceModel;
 use App\Models\SecuritiesAccountModel;
 use App\Models\SecurityModel;
 use App\Models\StockModel;
@@ -21,6 +22,8 @@ use App\Services\Accounting\DocumentNumberService;
 use App\Services\Accounting\JournalPoster;
 use App\Services\MasterData\SecurityService;
 use App\Services\MasterData\StockService;
+use App\Services\Portfolio\MarketPriceService;
+use App\Services\Portfolio\PortfolioService;
 use App\Services\Portfolio\PositionService;
 use App\Services\Transaction\CashTransactionService;
 use App\Services\Transaction\DividendTransactionService;
@@ -117,6 +120,30 @@ class Services extends BaseService
         }
 
         return new PositionService(new StockPositionModel(), new StockTransactionModel());
+    }
+
+    public static function marketPrices(bool $getShared = true): MarketPriceService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('marketPrices');
+        }
+
+        return new MarketPriceService(new MarketPriceModel(), new StockModel(), static::auditLogger());
+    }
+
+    public static function portfolio(bool $getShared = true): PortfolioService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('portfolio');
+        }
+
+        return new PortfolioService(
+            new StockPositionModel(),
+            new MarketPriceModel(),
+            new JournalLineModel(),
+            new AccountModel(),
+            new SecuritiesAccountModel(),
+        );
     }
 
     public static function cashTransactions(bool $getShared = true): CashTransactionService
