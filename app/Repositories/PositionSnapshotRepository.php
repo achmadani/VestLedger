@@ -22,6 +22,15 @@ use App\ValueObjects\Money;
  */
 class PositionSnapshotRepository
 {
+    /**
+     * Metadata sekuritas & saham tidak bergantung pada tanggal, sehingga cukup
+     * dibaca sekali per request. Laporan tahunan memanggil asOf() tiga belas
+     * kali; tanpa memoisasi ini, dua query yang sama diulang tiga belas kali.
+     *
+     * @var array<string, array<int, array<string, mixed>>>|null
+     */
+    private ?array $meta = null;
+
     public function __construct(private AccountModel $accounts)
     {
     }
@@ -84,19 +93,7 @@ class PositionSnapshotRepository
             return [];
         }
 
-        // Metadata sekuritas & saham, satu query untuk semuanya.
-        $meta = [];
-
-        foreach ($db->query(
-            'SELECT sa.id AS account_id, s.code AS securities_code, s.name AS securities_name, sa.label AS account_label
-             FROM securities_accounts sa JOIN securities s ON s.id = sa.securities_id'
-        )->getResultArray() as $row) {
-            $meta['account'][(int) $row['account_id']] = $row;
-        }
-
-        foreach ($db->query('SELECT id, ticker, company_name, sector FROM stocks')->getResultArray() as $row) {
-            $meta['stock'][(int) $row['id']] = $row;
-        }
+        $meta = $this->metadata($db);
 
         $positions = [];
 
@@ -122,5 +119,32 @@ class PositionSnapshotRepository
         usort($positions, static fn (array $a, array $b): int => [$a['ticker'], $a['securities_code']] <=> [$b['ticker'], $b['securities_code']]);
 
         return $positions;
+    }
+
+    /**
+     * Metadata sekuritas & saham, dibaca sekali lalu dipakai ulang.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function metadata(\CodeIgniter\Database\BaseConnection $db): array
+    {
+        if ($this->meta !== null) {
+            return $this->meta;
+        }
+
+        $meta = ['account' => [], 'stock' => []];
+
+        foreach ($db->query(
+            'SELECT sa.id AS account_id, s.code AS securities_code, s.name AS securities_name, sa.label AS account_label
+             FROM securities_accounts sa JOIN securities s ON s.id = sa.securities_id'
+        )->getResultArray() as $row) {
+            $meta['account'][(int) $row['account_id']] = $row;
+        }
+
+        foreach ($db->query('SELECT id, ticker, company_name, sector FROM stocks')->getResultArray() as $row) {
+            $meta['stock'][(int) $row['id']] = $row;
+        }
+
+        return $this->meta = $meta;
     }
 }

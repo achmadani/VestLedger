@@ -130,5 +130,11 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
     // ---------------------------------------------------------------- Sistem
     $routes->group('system', static function (RouteCollection $routes): void {
         $routes->get('audit', 'System\Audit::index', ['filter' => 'permission:audit.view']);
+
+        $routes->get('users', 'System\Users::index', ['filter' => 'permission:user.manage']);
+        $routes->post('users', 'System\Users::create', ['filter' => 'permission:user.manage']);
+        $routes->post('users/(:num)/group', 'System\Users::changeGroup/$1', ['filter' => 'permission:user.manage']);
+        $routes->post('users/(:num)/activate', 'System\Users::activate/$1', ['filter' => 'permission:user.manage']);
+        $routes->post('users/(:num)/deactivate', 'System\Users::deactivate/$1', ['filter' => 'permission:user.manage']);
     });
 });

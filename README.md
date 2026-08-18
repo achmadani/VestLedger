@@ -22,7 +22,7 @@ Riwayat perubahan ada di **[CHANGELOG.md](CHANGELOG.md)**.
 | 6 | Reporting — neraca, laba rugi, arus kas, trial balance, bulanan, tahunan | ⬜ |
 | 7 | Dashboard & UI — chart, filter, penyempurnaan responsive | ✅ Selesai |
 | 8 | Opening Balance & Closing Period | ✅ Selesai |
-| 9 | Testing, Security Review & Deployment | ⬜ |
+| 9 | Testing, Security Review & Deployment | ✅ Selesai |
 
 Menu untuk phase yang belum dibangun tampil sebagai placeholder non-aktif di
 sidebar (dengan badge nomor phase), sehingga kerangka aplikasi terlihat utuh
@@ -118,6 +118,8 @@ make release    # naikkan versi, commit, lalu push (PART=patch|minor|major)
 make dev        # Tailwind watch mode selama mengembangkan UI
 make build      # build ulang CSS + salin Alpine.js ke public/assets
 make seed       # isi master data awal (idempoten)
+make health     # periksa integritas akuntansi & konfigurasi keamanan
+make rebuild    # bangun ulang posisi dari transaksi (buku besar tidak disentuh)
 make test       # jalankan seluruh test
 make migrate    # jalankan migrasi database
 make fresh      # rollback seluruh migrasi lalu migrasi ulang (HATI-HATI: menghapus data)
@@ -198,6 +200,12 @@ Cakupan test:
   setelah transaksi, dan penghapusan lewat jurnal pembalik.
 - **`tests/feature/OpeningBalanceUiTest.php`** — form saldo awal, otorisasi
   `opening.manage`, dan grafik dashboard yang dirender sebagai SVG tanpa library.
+- **`tests/feature/SecurityTest.php`** — menyerang aplikasi lewat HTTP: XSS
+  tersimpan, SQL injection lewat filter, permintaan tanpa token CSRF, pembatasan
+  laju login, penyamaran data sensitif, dan pemeriksaan menyeluruh bahwa setiap
+  rute POST berada di balik filter permission.
+- **`tests/feature/UserManagementTest.php`** — pembuatan akun, kekuatan kata
+  sandi, dan penjagaan agar owner aktif terakhir tidak dapat dilucuti.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).

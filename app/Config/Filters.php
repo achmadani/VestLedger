@@ -124,5 +124,23 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        /*
+         * Pembatasan laju pada halaman autentikasi (§36).
+         *
+         * Shield menyediakan filternya tetapi TIDAK memasangnya sendiri:
+         * service('auth')->routes() hanya mendaftarkan rute tanpa filter apa pun.
+         * Tanpa baris ini, halaman login menerima percobaan kata sandi sebanyak
+         * apa pun tanpa hambatan.
+         *
+         * AuthRates membatasi 10 permintaan per menit per alamat IP dan
+         * mengembalikan 429 setelahnya.
+         */
+        'auth-rates' => [
+            'before' => [
+                'login*',
+                'auth/a/*',
+            ],
+        ],
+    ];
 }

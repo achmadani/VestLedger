@@ -32,6 +32,15 @@ use App\ValueObjects\Price;
  */
 class PortfolioService
 {
+    /**
+     * Daftar rekening sekuritas tidak bergantung pada tanggal laporan;
+     * laporan tahunan menyusun potret tiga belas kali dan tidak perlu
+     * membaca daftar yang sama berulang-ulang.
+     *
+     * @var list<\App\Entities\SecuritiesAccount>|null
+     */
+    private ?array $accountCache = null;
+
     public function __construct(
         private StockPositionModel $positions,
         private MarketPriceModel $prices,
@@ -98,7 +107,9 @@ class PortfolioService
         $cash   = $this->cashByAccount($asOf);
         $result = [];
 
-        foreach ($this->securitiesAccounts->withSecurities() as $account) {
+        $this->accountCache ??= $this->securitiesAccounts->withSecurities();
+
+        foreach ($this->accountCache as $account) {
             $balance = $cash[$account->id] ?? Money::zero();
 
             if (! $balance->isNegative()) {
@@ -212,7 +223,9 @@ class PortfolioService
     {
         $grouped = [];
 
-        foreach ($this->securitiesAccounts->withSecurities() as $account) {
+        $this->accountCache ??= $this->securitiesAccounts->withSecurities();
+
+        foreach ($this->accountCache as $account) {
             $grouped[$account->id] = [
                 'securities_account_id' => $account->id,
                 // Kolom hasil join dibaca lewat magic getter entity; properti

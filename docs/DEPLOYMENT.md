@@ -38,6 +38,11 @@ composer install --no-dev --optimize-autoloader
 Jika hosting tidak menyediakan Composer, jalankan perintah di atas secara lokal
 dengan `--no-dev` lalu upload folder `vendor/` hasilnya.
 
+> ⚠️ `composer install --no-dev` **menghapus** PHPUnit dan dependensi
+> pengembangan dari `vendor/` — bahkan dengan `--dry-run` pada Composer 2.10.
+> Jangan menjalankannya di mesin development Anda; pulihkan dengan
+> `composer install` bila terlanjur.
+
 > Gunakan `composer config platform.php 8.2.0` (sudah disetel di repo ini) agar
 > dependency selalu diresolusi untuk PHP 8.2 meskipun mesin development memakai
 > PHP versi lebih tinggi.
@@ -172,7 +177,33 @@ php spark cache:clear
 
 Aktifkan juga OPcache di panel hosting bila tersedia.
 
-## 12. Pemeriksaan keamanan production
+## 12. Pemeriksaan kesehatan
+
+```bash
+php spark vestledger:health
+```
+
+Memeriksa hal-hal yang, bila salah, membuat seluruh laporan keuangan tidak dapat
+dipercaya — dan yang tidak akan terlihat dari tampilan biasa:
+
+- akun inti lengkap, aktif, dan bertipe benar,
+- total debit sama dengan total kredit,
+- **setiap jurnal** balance satu per satu (total global bisa saja balance
+  meskipun ada dua jurnal yang sama-sama salah dan saling menutupi),
+- saldo akun 1100 sama dengan jumlah book value seluruh posisi,
+- file session berada di luar web root,
+- `CI_ENVIRONMENT` sudah `production`.
+
+Bila posisi menyimpang dari buku besar:
+
+```bash
+php spark vestledger:rebuild-positions
+```
+
+Perintah itu membangun ulang tabel posisi dari transaksi dan **tidak menyentuh
+buku besar sama sekali** — ledger tetap menjadi sumber kebenaran.
+
+## 13. Pemeriksaan keamanan production
 
 Checklist sebelum menyerahkan aplikasi:
 
@@ -204,4 +235,5 @@ composer install --no-dev --optimize-autoloader
 php spark migrate --all
 bash bin/write-build-info.sh   # catat commit yang ter-deploy, tampil di sidebar
 php spark optimize
+php spark vestledger:health    # pastikan integritas akuntansi masih utuh
 ```

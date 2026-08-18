@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FiltersRequestInput;
 use App\Models\AccountingPeriodModel;
 use App\Models\SecuritiesAccountModel;
 use App\Models\StockModel;
@@ -16,11 +17,13 @@ use App\Models\StockModel;
  */
 class Reports extends BaseController
 {
+    use FiltersRequestInput;
+
     // ------------------------------------------------------ Laporan keuangan
 
     public function balanceSheet(): string
     {
-        $asOf = $this->dateParam('as_of', date('Y-m-d'));
+        $asOf = (string) $this->dateInput('as_of', date('Y-m-d'));
 
         return view('reports/balance_sheet', [
             'pageTitle' => 'Neraca',
@@ -100,8 +103,8 @@ class Reports extends BaseController
     {
         [$from, $to] = $this->range();
 
-        $stockId   = (int) $this->request->getGet('stock_id');
-        $accountId = (int) $this->request->getGet('securities_account_id');
+        $stockId   = $this->idInput('stock_id');
+        $accountId = $this->idInput('securities_account_id');
 
         return view('reports/realized', [
             'pageTitle' => 'Realized Gain/Loss',
@@ -116,7 +119,7 @@ class Reports extends BaseController
 
     public function unrealized(): string
     {
-        $asOf = $this->dateParam('as_of', date('Y-m-d'));
+        $asOf = (string) $this->dateInput('as_of', date('Y-m-d'));
 
         return view('reports/unrealized', [
             'pageTitle' => 'Unrealized Gain/Loss',
@@ -158,20 +161,14 @@ class Reports extends BaseController
      */
     private function range(): array
     {
-        $from = $this->dateParam('from', date('Y') . '-01-01');
-        $to   = $this->dateParam('to', date('Y-m-d'));
+        $from = (string) $this->dateInput('from', date('Y') . '-01-01');
+        $to   = (string) $this->dateInput('to', date('Y-m-d'));
 
         // Rentang terbalik hampir selalu salah ketik; ditukar diam-diam akan
         // membingungkan, jadi dibetulkan dan hasilnya tetap masuk akal.
         return $from <= $to ? [$from, $to] : [$to, $from];
     }
 
-    private function dateParam(string $key, string $default): string
-    {
-        $value = trim((string) $this->request->getGet($key));
-
-        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : $default;
-    }
 
     /**
      * @return list<int>

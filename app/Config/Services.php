@@ -35,6 +35,8 @@ use App\Services\Transaction\CashTransactionService;
 use App\Services\Transaction\DividendTransactionService;
 use App\Services\Transaction\ReversalService;
 use App\Services\Transaction\StockTransactionService;
+use App\Services\UserAccountService;
+use CodeIgniter\Shield\Models\UserModel;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -80,6 +82,15 @@ class Services extends BaseService
         }
 
         return new AccountingPeriodService(new AccountingPeriodModel());
+    }
+
+    public static function userAccounts(bool $getShared = true): UserAccountService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('userAccounts');
+        }
+
+        return new UserAccountService(new UserModel(), static::auditLogger());
     }
 
     public static function documentNumber(bool $getShared = true): DocumentNumberService

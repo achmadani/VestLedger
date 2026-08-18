@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers\Accounting;
 
 use App\Controllers\BaseController;
+use App\Controllers\Concerns\FiltersRequestInput;
 use App\Models\JournalEntryModel;
 use App\Models\JournalLineModel;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -14,11 +15,13 @@ use CodeIgniter\HTTP\RedirectResponse;
  */
 class Journal extends BaseController
 {
+    use FiltersRequestInput;
+
     public function index(): string
     {
         $entries = new JournalEntryModel();
-        $from    = trim((string) $this->request->getGet('from'));
-        $to      = trim((string) $this->request->getGet('to'));
+        $from    = (string) $this->dateInput('from', '');
+        $to      = (string) $this->dateInput('to', '');
 
         $builder = $entries->withTotals();
 

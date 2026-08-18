@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers\Transactions;
 
 use App\Controllers\BaseController;
+use App\Controllers\Concerns\FiltersRequestInput;
 use App\Controllers\Concerns\HandlesBusinessRules;
 use App\Exceptions\BusinessRuleException;
 use App\Models\SecuritiesAccountModel;
@@ -17,17 +18,18 @@ use CodeIgniter\HTTP\RedirectResponse;
  */
 class Index extends BaseController
 {
+    use FiltersRequestInput;
     use HandlesBusinessRules;
 
     public function index(): string
     {
         $filters = [
-            'from'                  => trim((string) $this->request->getGet('from')),
-            'to'                    => trim((string) $this->request->getGet('to')),
-            'kind'                  => trim((string) $this->request->getGet('kind')),
-            'securities_account_id' => (int) $this->request->getGet('securities_account_id'),
-            'stock_id'              => (int) $this->request->getGet('stock_id'),
-            'status'                => trim((string) $this->request->getGet('status')),
+            'from'                  => (string) $this->dateInput('from', ''),
+            'to'                    => (string) $this->dateInput('to', ''),
+            'kind'                  => $this->enumInput('kind', ['cash', 'stock', 'dividend']),
+            'securities_account_id' => $this->idInput('securities_account_id'),
+            'stock_id'              => $this->idInput('stock_id'),
+            'status'                => $this->enumInput('status', ['posted', 'reversed']),
             'q'                     => trim((string) $this->request->getGet('q')),
         ];
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FiltersRequestInput;
 use App\Controllers\Concerns\HandlesBusinessRules;
 use App\Exceptions\BusinessRuleException;
 use App\Models\MarketPriceModel;
@@ -16,11 +17,12 @@ use CodeIgniter\HTTP\RedirectResponse;
  */
 class MarketPrices extends BaseController
 {
+    use FiltersRequestInput;
     use HandlesBusinessRules;
 
     public function index(): string
     {
-        $date   = trim((string) $this->request->getGet('date')) ?: date('Y-m-d');
+        $date   = (string) $this->dateInput('date', date('Y-m-d'));
         $prices = new MarketPriceModel();
 
         // Saham yang sedang dimiliki didahulukan: itulah yang harganya benar-benar

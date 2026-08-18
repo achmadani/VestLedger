@@ -96,7 +96,7 @@ class Navigation extends BaseConfig
                 'icon'  => 'shield',
                 'items' => [
                     ['label' => 'Audit Trail', 'route' => '/system/audit', 'permission' => 'audit.view', 'enabled' => true, 'phase' => null],
-                    ['label' => 'Pengguna', 'route' => '/system/users', 'permission' => 'user.manage', 'enabled' => false, 'phase' => 'Phase 9'],
+                    ['label' => 'Pengguna', 'route' => '/system/users', 'permission' => 'user.manage', 'enabled' => true, 'phase' => null],
                 ],
             ],
         ];

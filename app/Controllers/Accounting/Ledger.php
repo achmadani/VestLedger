@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers\Accounting;
 
 use App\Controllers\BaseController;
+use App\Controllers\Concerns\FiltersRequestInput;
 use App\Enums\BalanceSide;
 use App\Models\AccountModel;
 use App\Models\JournalLineModel;
@@ -17,14 +18,16 @@ use App\ValueObjects\Money;
  */
 class Ledger extends BaseController
 {
+    use FiltersRequestInput;
+
     public function index(): string
     {
         $filters = [
-            'account_id'            => (int) $this->request->getGet('account_id'),
-            'securities_account_id' => (int) $this->request->getGet('securities_account_id'),
-            'stock_id'              => (int) $this->request->getGet('stock_id'),
-            'from'                  => trim((string) $this->request->getGet('from')),
-            'to'                    => trim((string) $this->request->getGet('to')),
+            'account_id'            => $this->idInput('account_id'),
+            'securities_account_id' => $this->idInput('securities_account_id'),
+            'stock_id'              => $this->idInput('stock_id'),
+            'from'                  => $this->dateInput('from', ''),
+            'to'                    => $this->dateInput('to', ''),
         ];
 
         $accounts = new AccountModel();

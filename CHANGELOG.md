@@ -14,6 +14,38 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+## [0.8.0] — 2026-08-18 — Phase 9: Security Review, Performance, dan Deployment
+
+### Ditambahkan
+- Pengelolaan akun pengguna: pembuatan akun, perubahan peran, dan
+  aktivasi/penonaktifan. Owner aktif terakhir tidak dapat dilucuti perannya.
+- `php spark vestledger:health` — pemeriksaan integritas akuntansi dan
+  konfigurasi keamanan untuk dijalankan setelah deployment.
+- `php spark vestledger:rebuild-positions` — membangun ulang posisi dari
+  transaksi tanpa menyentuh buku besar.
+- `tests/feature/SecurityTest.php` — menyerang aplikasi lewat HTTP alih-alih
+  memeriksa kode: XSS tersimpan, SQL injection lewat filter, CSRF, rate limit,
+  dan penyamaran data sensitif.
+
+### Keamanan
+- **Halaman login tidak memiliki pembatasan laju.** Shield menyediakan filter
+  `auth-rates` tetapi tidak memasangnya sendiri; `service('auth')->routes()`
+  hanya mendaftarkan rute tanpa filter apa pun. Tanpa konfigurasi ini, halaman
+  login menerima percobaan kata sandi sebanyak apa pun tanpa hambatan.
+- **Kata sandi lemah diterima saat membuat pengguna.** `UserModel::save()` tidak
+  memeriksa kekuatan kata sandi — aturan itu berada di
+  `ValidationRules::getRegistrationRules()` yang hanya dipakai RegisterController
+  bawaan, sementara registrasi di aplikasi ini dimatikan. Aturan tersebut kini
+  dipanggil eksplisit; kata sandi `123` ditolak.
+- Tanggal tidak valid pada query string membuat halaman error 500. Nilainya
+  memang selalu terikat sebagai parameter sehingga tidak ada risiko injection,
+  tetapi kini disaring lebih dulu di seluruh controller.
+
+### Kinerja
+- Metadata sekuritas dan saham dibaca sekali per request alih-alih diulang pada
+  setiap potret portofolio. Laporan tahunan 190 ms → 164 ms pada volume 5 tahun
+  transaksi aktif (340 transaksi, 730 baris jurnal).
+
 ## [0.7.0] — 2026-08-18 — Phase 7 & 8: Dashboard, Chart, dan Saldo Awal
 
 ### Ditambahkan

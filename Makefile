@@ -7,7 +7,7 @@ PHP  := /opt/homebrew/opt/php@8.3/bin/php
 NVM  := . $$HOME/.nvm/nvm.sh && nvm use 20 >/dev/null &&
 PORT := 8123
 
-.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks
+.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks health rebuild
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -64,6 +64,12 @@ fresh: ## HATI-HATI: hapus seluruh tabel lalu migrasi ulang
 
 seed: ## Isi master data awal (CoA, sekuritas, saham, periode tahun berjalan)
 	$(PHP) spark db:seed InitialSeeder
+
+health: ## Periksa integritas akuntansi dan konfigurasi keamanan
+	$(PHP) spark vestledger:health
+
+rebuild: ## Bangun ulang posisi saham dari transaksi (buku besar tidak disentuh)
+	$(PHP) spark vestledger:rebuild-positions
 
 user-create: ## Buat akun owner. Contoh: make user-create NAME=bambang EMAIL=bambang@example.com
 	@test -n "$(NAME)"  || (echo "NAME wajib diisi. Contoh: make user-create NAME=bambang EMAIL=..." && exit 1)
