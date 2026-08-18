@@ -202,5 +202,6 @@ make build && git commit -am "..." && git push
 git pull
 composer install --no-dev --optimize-autoloader
 php spark migrate --all
+bash bin/write-build-info.sh   # catat commit yang ter-deploy, tampil di sidebar
 php spark optimize
 ```

@@ -261,12 +261,18 @@ Setelah mengubahnya, jalankan `make build`.
 
 ## Versi aplikasi
 
-Nomor versi ada di berkas `VERSION` dan ditampilkan di sidebar serta halaman
-login, bersama commit pendek dari `writable/build.json`.
+Nomor versi ada di berkas `VERSION` (di-commit) dan ditampilkan di sidebar serta
+halaman login. Commit pendek diambil dari `writable/build.json`, yang
+**tidak** di-commit melainkan dihasilkan saat build/deploy.
 
-Keduanya berupa berkas, bukan pemanggilan `git` saat runtime — server produksi
+Alasannya: sebuah berkas tidak mungkin memuat SHA commit-nya sendiri — kalau
+ikut di-commit, ia akan selalu menunjuk commit sebelumnya. Dengan dihasilkan
+setelah `git pull` di server, ia menunjuk commit yang benar-benar ter-deploy.
+
+Keduanya berupa berkas, bukan pemanggilan `git` saat runtime: server produksi
 sering tidak memiliki direktori `.git`, dan memanggil proses eksternal pada
-setiap request tidak pantas.
+setiap request tidak pantas. Bila `build.json` tidak ada, UI cukup menampilkan
+nomor versinya saja.
 
 **Versi wajib naik pada setiap push.** Hook `.githooks/pre-push` menolak push
 bila `VERSION` sama dengan yang sudah ada di remote. Aktifkan hook-nya sekali

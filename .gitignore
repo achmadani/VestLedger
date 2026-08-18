@@ -148,3 +148,9 @@ _tmp*
 # Direktori ini pernah terbentuk karena `session.savePath = null` di .env dibaca
 # sebagai string "null"; lihat catatan di .env.
 /public/null/
+
+# Metadata build: dihasilkan saat build/deploy, bukan di-commit.
+# Sebuah berkas tidak mungkin memuat SHA commit-nya sendiri, jadi jika ikut
+# di-commit ia akan selalu menunjuk commit sebelumnya. Di server, berkas ini
+# dibuat setelah `git pull` sehingga menunjuk commit yang benar-benar ter-deploy.
+/writable/build.json

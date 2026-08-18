@@ -44,10 +44,11 @@ release: ## Naikkan versi, commit, lalu push. PART=patch|minor|major (default pa
 	@test -z "$$(git status --porcelain --untracked-files=no)" \
 		|| (echo "Ada perubahan yang belum di-commit. Commit dulu, baru jalankan make release." && exit 1)
 	@bash bin/bump-version.sh $${PART:-patch}
-	@bash bin/write-build-info.sh
-	git add VERSION writable/build.json
+	git add VERSION
 	git commit -m "Rilis v$$(cat VERSION)"
 	git push origin $$(git rev-parse --abbrev-ref HEAD)
+	@# build.json ditulis SETELAH commit, sehingga menunjuk commit rilis itu sendiri.
+	@bash bin/write-build-info.sh
 
 test: ## Jalankan seluruh test
 	$(PHP) vendor/bin/phpunit --colors=always

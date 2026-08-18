@@ -14,6 +14,14 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+## [0.5.2] — 2026-08-18
+
+### Diperbaiki
+- `writable/build.json` tidak lagi di-commit. Sebuah berkas tidak mungkin memuat
+  SHA commit-nya sendiri, sehingga versi yang di-commit selalu menunjuk commit
+  sebelumnya. Kini berkas tersebut dihasilkan saat build/deploy — setelah
+  `git pull` di server — sehingga menunjuk commit yang benar-benar ter-deploy.
+
 ## [0.5.1] — 2026-08-18
 
 ### Ditambahkan
