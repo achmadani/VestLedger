@@ -9,6 +9,8 @@
     'breadcrumbs' => [['label' => 'Portofolio'], ['label' => 'Per Sekuritas']],
 ]) ?>
 
+<?= component('negative_cash_notice', ['accounts' => $t['negative_cash']]) ?>
+
 <?= component('unpriced_notice', ['count' => $t['unpriced_count'], 'bookValue' => fmt_rupiah($t['unpriced_book_value']->toFloat())]) ?>
 
 <?php

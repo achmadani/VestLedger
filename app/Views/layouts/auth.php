@@ -44,6 +44,9 @@ $defaultTheme = investment_config()->defaultTheme;
     <p class="text-center text-[11px] text-base-content/40 mt-6">
         Data keuangan pribadi. Jangan bagikan kredensial Anda kepada siapa pun.
     </p>
+    <p class="text-center text-[11px] text-base-content/30 mt-1">
+        <?= esc(\Config\Version::full()) ?>
+    </p>
 </div>
 
 <?= $this->renderSection('pageScripts') ?>

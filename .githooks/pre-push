@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Memastikan setiap push membawa nomor versi baru.
+#
+# Hook ini MENOLAK push bila berkas VERSION tidak berubah dibanding commit yang
+# sudah ada di remote. Ia sengaja tidak menaikkan versi sendiri lalu melanjutkan:
+# push sudah menghitung ref yang akan dikirim sebelum hook berjalan, sehingga
+# commit yang dibuat di sini tidak akan ikut terkirim — hasilnya justru
+# membingungkan. Karena itu hook memberi tahu perintah yang benar.
+#
+# Diaktifkan lewat: git config core.hooksPath .githooks  (dilakukan `make setup`)
+
+set -euo pipefail
+
+REMOTE="${1:-origin}"
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+# Push pertama kali ke branch ini: belum ada pembanding.
+if ! git rev-parse --verify --quiet "refs/remotes/${REMOTE}/${BRANCH}" >/dev/null; then
+  exit 0
+fi
+
+REMOTE_VERSION="$(git show "refs/remotes/${REMOTE}/${BRANCH}:VERSION" 2>/dev/null | tr -d '[:space:]' || echo '')"
+LOCAL_VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo '')"
+
+if [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" = "$LOCAL_VERSION" ]; then
+  cat >&2 <<MSG
+
+  Push ditolak: versi aplikasi masih $LOCAL_VERSION, sama dengan yang ada di $REMOTE.
+
+  Setiap push harus membawa versi baru. Jalankan salah satu:
+
+      make release                 # naikkan patch, commit, lalu push
+      make release PART=minor      # untuk phase baru
+      make release PART=major
+
+  Atau naikkan manual:  bin/bump-version.sh patch && git commit -am "..." 
+
+MSG
+  exit 1
+fi
+
+exit 0

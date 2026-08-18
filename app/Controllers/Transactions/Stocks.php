@@ -28,6 +28,7 @@ class Stocks extends BaseController
             'accounts'  => (new SecuritiesAccountModel())->options(),
             'stocks'    => (new StockModel())->options(),
             'positions' => $this->positionMap(),
+            'cash'      => service('portfolio')->cashBalances(),
         ]);
     }
 
@@ -39,6 +40,7 @@ class Stocks extends BaseController
             'accounts'  => (new SecuritiesAccountModel())->options(),
             'stocks'    => (new StockModel())->options(),
             'positions' => $this->positionMap(),
+            'cash'      => service('portfolio')->cashBalances(),
         ]);
     }
 
@@ -70,8 +72,33 @@ class Stocks extends BaseController
             return $this->redirectWithRuleError($e, '/transactions/' . $slug);
         }
 
-        return redirect()->to('/transactions')
+        $redirect = redirect()->to('/transactions')
             ->with('success', sprintf('%s %s berhasil dicatat beserta jurnalnya.', $type->label(), $transaction->transaction_number));
+
+        return $this->warnIfCashWentNegative($redirect, $transaction->securities_account_id);
+    }
+
+    /**
+     * Memperingatkan bila transaksi membuat saldo kas rekening menjadi negatif.
+     *
+     * Transaksi TIDAK dibatalkan. Aplikasi ini dipakai untuk pencatatan dan
+     * transaksi kerap dimasukkan mundur, sehingga saldo bisa tampak negatif
+     * hanya karena top up-nya belum sempat dicatat.
+     */
+    private function warnIfCashWentNegative(RedirectResponse $redirect, int $accountId): RedirectResponse
+    {
+        $balances = service('portfolio')->cashBalances();
+        $balance  = \App\ValueObjects\Money::of($balances[$accountId] ?? '0');
+
+        if (! $balance->isNegative()) {
+            return $redirect;
+        }
+
+        return $redirect->with('warning', sprintf(
+            'Saldo kas rekening ini sekarang %s. Transaksi tetap tercatat — '
+            . 'periksa apakah ada top up atau penjualan yang belum dimasukkan.',
+            fmt_rupiah($balance->toFloat())
+        ));
     }
 
     /**

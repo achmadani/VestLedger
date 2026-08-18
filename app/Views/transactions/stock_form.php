@@ -22,7 +22,7 @@ $perLot   = investment_config()->sharesPerLot;
 ]) ?>
 
 <form method="post" action="<?= site_url('transactions/' . $slug) ?>"
-      x-data='stockForm(<?= json_encode($positions, JSON_HEX_APOS | JSON_HEX_QUOT) ?>, <?= $perLot ?>, <?= $isBuy ? 'true' : 'false' ?>)'>
+      x-data='stockForm(<?= json_encode($positions, JSON_HEX_APOS | JSON_HEX_QUOT) ?>, <?= json_encode($cash, JSON_HEX_APOS | JSON_HEX_QUOT) ?>, <?= $perLot ?>, <?= $isBuy ? 'true' : 'false' ?>)'>
     <?= csrf_field() ?>
 
     <div class="grid gap-4 lg:grid-cols-3">
@@ -159,6 +159,27 @@ $perLot   = investment_config()->sharesPerLot;
                 </div>
             </template>
 
+            <div class="border-t border-base-300 pt-2 mt-2 space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-base-content/60">Kas Rekening Saat Ini</span>
+                    <span class="num" x-text="accountId ? fmt(currentCash) : '-'"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-medium">Kas Setelah Transaksi</span>
+                    <span class="num font-semibold"
+                          :class="projectedCash < 0 ? 'text-warning' : ''"
+                          x-text="accountId ? fmt(projectedCash) : '-'"></span>
+                </div>
+            </div>
+
+            <template x-if="accountId && projectedCash < 0">
+                <div class="alert alert-warning text-xs mt-2">
+                    Transaksi ini membuat saldo kas rekening menjadi negatif.
+                    Pencatatan tetap dilanjutkan — transaksi memang boleh dimasukkan mundur —
+                    tetapi periksa apakah ada top up yang belum dicatat.
+                </div>
+            </template>
+
             <template x-if="quantity > currentQty && !isBuy">
                 <div class="alert alert-error text-xs mt-2">
                     Jumlah jual melebihi kepemilikan. Transaksi akan ditolak.
@@ -193,9 +214,9 @@ $perLot   = investment_config()->sharesPerLot;
      * Perhitungan di sini HANYA untuk tampilan. Server menghitung ulang semuanya
      * saat menyimpan, jadi angka di layar tidak pernah menjadi sumber kebenaran.
      */
-    function stockForm(positions, perLot, isBuy) {
+    function stockForm(positions, cash, perLot, isBuy) {
         return {
-            positions, perLot, isBuy,
+            positions, cash, perLot, isBuy,
             accountId: '', stockId: '',
             quantity: 0, price: 0, brokerFee: 0, tax: 0, levy: 0,
 
@@ -223,6 +244,18 @@ $perLot   = investment_config()->sharesPerLot;
 
             get realizedGross() { return this.gross - this.bookValueSold; },
             get realizedNet() { return this.realizedGross - this.charges; },
+
+            get currentCash() { return Number(this.cash[this.accountId] || 0); },
+
+            /**
+             * Saldo kas seandainya transaksi ini disimpan.
+             * Beli mengurangi kas sebesar gross + biaya; jual menambah kas netto.
+             */
+            get projectedCash() {
+                return this.isBuy
+                    ? this.currentCash - (this.gross + this.charges)
+                    : this.currentCash + (this.gross - this.charges);
+            },
 
             fmt(value, decimals = 0) {
                 if (!isFinite(value)) return '-';

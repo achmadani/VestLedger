@@ -9,6 +9,8 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 
 ---
 
+Riwayat perubahan ada di **[CHANGELOG.md](CHANGELOG.md)**.
+
 ## Status pembangunan
 
 | Phase | Lingkup | Status |
@@ -111,6 +113,8 @@ sudah menambahkan group `owner` (akses penuh). Group lain yang tersedia:
 ### Perintah lain
 
 ```bash
+make version    # tampilkan versi aplikasi saat ini
+make release    # naikkan versi, commit, lalu push (PART=patch|minor|major)
 make dev        # Tailwind watch mode selama mengembangkan UI
 make build      # build ulang CSS + salin Alpine.js ke public/assets
 make seed       # isi master data awal (idempoten)
@@ -254,6 +258,24 @@ Daftar tema didefinisikan di dua tempat yang harus sinkron:
 Setelah mengubahnya, jalankan `make build`.
 
 ---
+
+## Versi aplikasi
+
+Nomor versi ada di berkas `VERSION` dan ditampilkan di sidebar serta halaman
+login, bersama commit pendek dari `writable/build.json`.
+
+Keduanya berupa berkas, bukan pemanggilan `git` saat runtime — server produksi
+sering tidak memiliki direktori `.git`, dan memanggil proses eksternal pada
+setiap request tidak pantas.
+
+**Versi wajib naik pada setiap push.** Hook `.githooks/pre-push` menolak push
+bila `VERSION` sama dengan yang sudah ada di remote. Aktifkan hook-nya sekali
+dengan `make hooks` (sudah termasuk dalam `make setup`), lalu gunakan:
+
+```bash
+make release                 # naikkan patch, commit, push
+make release PART=minor      # untuk phase baru
+```
 
 ## Catatan keamanan yang pernah terjadi
 

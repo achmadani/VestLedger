@@ -15,6 +15,8 @@ $typeLabels = [
     'subtitle' => 'Ringkasan posisi portofolio per ' . fmt_date($snapshot['as_of']) . '.',
 ]) ?>
 
+<?= component('negative_cash_notice', ['accounts' => $t['negative_cash']]) ?>
+
 <?= component('unpriced_notice', [
     'count'     => $t['unpriced_count'],
     'bookValue' => fmt_rupiah($t['unpriced_book_value']->toFloat()),

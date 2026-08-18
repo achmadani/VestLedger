@@ -310,6 +310,95 @@ final class PortfolioTest extends EngineTestCase
         $this->assertMoneyEquals('101000000.00', $totals['net_worth']);
     }
 
+    // ------------------------------------------------------- Kas negatif
+
+    /**
+     * Pembelian melebihi saldo kas TIDAK diblokir.
+     *
+     * Aplikasi ini dipakai untuk pencatatan dan transaksi kerap dimasukkan
+     * mundur, sehingga saldo bisa tampak negatif hanya karena top up-nya belum
+     * sempat dicatat. Memblokirnya akan membuat pencatatan mundur mustahil.
+     */
+    public function testBuyingBeyondAvailableCashIsRecordedRatherThanBlocked(): void
+    {
+        service('cashTransactions')->topUp([
+            'transaction_date' => '2026-01-02', 'securities_account_id' => $this->ajaib, 'amount' => 1_000_000,
+        ]);
+
+        $transaction = service('stockTransactions')->buy([
+            'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
+        ]);
+
+        $this->assertNotNull($transaction->id, 'Transaksi harus tetap tercatat.');
+        $this->assertSame(1_000, $this->position($this->ajaib, $this->bbca)->quantity);
+
+        // Buku besar tetap benar meskipun kasnya negatif.
+        $this->assertEveryJournalBalanced();
+        $this->assertAccountingEquationHolds();
+    }
+
+    /**
+     * Saldo negatif tidak diblokir, tetapi HARUS terdeteksi dan dilaporkan.
+     */
+    public function testNegativeCashIsDetectedAndReported(): void
+    {
+        service('cashTransactions')->topUp([
+            'transaction_date' => '2026-01-02', 'securities_account_id' => $this->ajaib, 'amount' => 1_000_000,
+        ]);
+        service('stockTransactions')->buy([
+            'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
+        ]);
+
+        $negative = service('portfolio')->negativeCashAccounts('2026-06-30');
+
+        $this->assertCount(1, $negative);
+        $this->assertSame('AJAIB', $negative[0]['securities_code']);
+        $this->assertMoneyEquals('-7000000.00', $negative[0]['balance']);
+
+        // Ikut terbawa ke potret portofolio, sehingga tiap halaman dapat menampilkannya.
+        $this->assertCount(1, service('portfolio')->snapshot('2026-06-30')['totals']['negative_cash']);
+    }
+
+    /**
+     * Mencatat top up yang tertinggal secara MUNDUR harus memulihkan saldo —
+     * inilah alasan pembelian di atas tidak boleh diblokir.
+     */
+    public function testBackdatedTopUpClearsTheNegativeCashWarning(): void
+    {
+        service('cashTransactions')->topUp([
+            'transaction_date' => '2026-01-02', 'securities_account_id' => $this->ajaib, 'amount' => 1_000_000,
+        ]);
+        service('stockTransactions')->buy([
+            'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
+        ]);
+
+        $this->assertCount(1, service('portfolio')->negativeCashAccounts('2026-06-30'));
+
+        // Top up yang sebenarnya terjadi SEBELUM pembelian, baru dicatat sekarang.
+        service('cashTransactions')->topUp([
+            'transaction_date' => '2026-01-03', 'securities_account_id' => $this->ajaib, 'amount' => 10_000_000,
+        ]);
+
+        $this->assertSame([], service('portfolio')->negativeCashAccounts('2026-06-30'));
+        $this->assertEveryJournalBalanced();
+    }
+
+    public function testAccountsWithHealthyCashAreNotFlagged(): void
+    {
+        service('cashTransactions')->topUp([
+            'transaction_date' => '2026-01-02', 'securities_account_id' => $this->ajaib, 'amount' => 50_000_000,
+        ]);
+        service('stockTransactions')->buy([
+            'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
+        ]);
+
+        $this->assertSame([], service('portfolio')->negativeCashAccounts('2026-06-30'));
+    }
+
     /**
      * Realized gain dan dividen MASUK laba periode berjalan; unrealized tidak (§40.2).
      */

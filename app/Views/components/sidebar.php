@@ -62,7 +62,18 @@ $user        = auth()->user();
         <?php endforeach; ?>
     </nav>
 
-    <div class="px-4 py-3 border-t border-base-300 text-[11px] text-base-content/50">
-        <?= esc(config(\Config\App::class)->appTimezone) ?> &middot; <?= esc(date('d M Y')) ?>
+    <div class="px-4 py-3 border-t border-base-300 text-[11px] text-base-content/50 space-y-0.5">
+        <div class="flex items-center justify-between gap-2">
+            <span class="font-medium text-base-content/70" title="Versi aplikasi">
+                <?= esc(\Config\Version::string()) ?>
+            </span>
+            <?php $commit = \Config\Version::info()['commit']; ?>
+            <?php if ($commit !== null && $commit !== ''): ?>
+                <span class="font-mono" title="Commit <?= esc($commit, 'attr') ?>">
+                    <?= esc(substr($commit, 0, 7)) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+        <div><?= esc(config(\Config\App::class)->appTimezone) ?> &middot; <?= esc(date('d M Y')) ?></div>
     </div>
 </aside>

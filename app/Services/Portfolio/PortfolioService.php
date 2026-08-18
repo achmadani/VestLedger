@@ -63,6 +63,58 @@ class PortfolioService
     }
 
     /**
+     * Saldo kas per rekening, untuk dipakai form transaksi.
+     *
+     * @return array<int, string> [securities_account_id => saldo desimal]
+     */
+    public function cashBalances(?string $asOf = null): array
+    {
+        $balances = [];
+
+        foreach ($this->cashByAccount($asOf ?? date('Y-m-d')) as $accountId => $money) {
+            $balances[$accountId] = $money->toDecimalString();
+        }
+
+        return $balances;
+    }
+
+    /**
+     * Rekening yang saldo kasnya negatif.
+     *
+     * Saldo kas negatif TIDAK diblokir sistem: aplikasi ini dipakai untuk
+     * pencatatan, dan transaksi kerap dimasukkan mundur (backdate) sehingga
+     * urutan pemasukan data tidak selalu sama dengan urutan kejadiannya.
+     * Yang dilakukan sistem adalah menandainya secara mencolok, karena saldo
+     * RDN yang benar-benar negatif hampir selalu berarti ada transaksi yang
+     * belum dicatat.
+     *
+     * @return list<array{securities_account_id:int, securities_code:string, account_label:string, balance:\App\ValueObjects\Money}>
+     */
+    public function negativeCashAccounts(?string $asOf = null): array
+    {
+        $asOf ??= date('Y-m-d');
+        $cash   = $this->cashByAccount($asOf);
+        $result = [];
+
+        foreach ($this->securitiesAccounts->withSecurities() as $account) {
+            $balance = $cash[$account->id] ?? Money::zero();
+
+            if (! $balance->isNegative()) {
+                continue;
+            }
+
+            $result[] = [
+                'securities_account_id' => $account->id,
+                'securities_code'       => (string) ($account->securities_code ?? ''),
+                'account_label'         => $account->label,
+                'balance'               => $balance,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Baris posisi lengkap dengan market value dan unrealized gain/loss.
      *
      * @param array<int, array{price:string, date:string}> $priceMap
@@ -319,6 +371,7 @@ class PortfolioService
             'net_worth'           => $totalCash->add($marketValue)->add($unpriced),
             'net_profit'          => $netProfit,
             'position_count'      => count($positions),
+            'negative_cash'       => $this->negativeCashAccounts($asOf),
         ] + $ledger;
     }
 

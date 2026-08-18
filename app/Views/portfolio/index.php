@@ -15,6 +15,8 @@ $t = $snapshot['totals'];
         . '<button type="submit" class="btn btn-sm btn-neutral">Tampilkan</button></form>',
 ]) ?>
 
+<?= component('negative_cash_notice', ['accounts' => $t['negative_cash']]) ?>
+
 <?= component('unpriced_notice', ['count' => $t['unpriced_count'], 'bookValue' => fmt_rupiah($t['unpriced_book_value']->toFloat())]) ?>
 
 <div class="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 mb-6">
