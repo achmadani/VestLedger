@@ -32,8 +32,7 @@ final class PortfolioTest extends EngineTestCase
         // 10.000 lembar @ Rp8.000 tanpa biaya -> average cost tepat Rp8.000
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 9_000,
@@ -59,8 +58,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 9_000,
         ]);
@@ -68,7 +66,10 @@ final class PortfolioTest extends EngineTestCase
         $totals = service('portfolio')->snapshot('2026-06-30')['totals'];
 
         $this->assertMoneyEquals('10000000.00', $totals['unrealized']);
-        $this->assertMoneyEquals('0.00', $totals['net_profit'], 'Unrealized tidak boleh menaikkan laba periode berjalan');
+
+        // Laba periode berjalan hanya berisi bea materai Rp10.000 atas
+        // pembelian Rp80 juta hari itu — unrealized sama sekali tidak masuk.
+        $this->assertMoneyEquals('-10000.00', $totals['net_profit'], 'Unrealized tidak boleh menaikkan laba periode berjalan');
         $this->assertMoneyEquals('0.00', $totals['realized_net']);
     }
 
@@ -80,8 +81,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $journalsBefore = $this->db->table('journal_entries')->countAllResults();
         $bookBefore     = $this->position($this->ajaib, $this->bbca)->bookValue();
@@ -100,8 +100,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 7_000,
         ]);
@@ -121,12 +120,10 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-06', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbri, 'quantity' => 2_000, 'price' => 4_000,
-        ]);
+            'stock_id' => $this->bbri, 'quantity' => 2_000, 'price' => 4_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         // Hanya BBCA yang punya harga.
         service('marketPrices')->record([
@@ -154,8 +151,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         foreach ([['2026-03-01', 8_500], ['2026-04-01', 9_000], ['2026-07-01', 10_000]] as [$date, $price]) {
             service('marketPrices')->record(['stock_id' => $this->bbca, 'price_date' => $date, 'closing_price' => $price]);
@@ -222,12 +218,10 @@ final class PortfolioTest extends EngineTestCase
 
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-06', 'securities_account_id' => $this->ipot,
-            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 10_000,
         ]);
@@ -267,8 +261,7 @@ final class PortfolioTest extends EngineTestCase
 
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 9_000,
         ]);
@@ -297,8 +290,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib, 100_000_000);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('marketPrices')->record([
             'stock_id' => $this->bbca, 'price_date' => '2026-06-30', 'closing_price' => 9_000,
         ]);
@@ -327,8 +319,7 @@ final class PortfolioTest extends EngineTestCase
 
         $transaction = service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->assertNotNull($transaction->id, 'Transaksi harus tetap tercatat.');
         $this->assertSame(1_000, $this->position($this->ajaib, $this->bbca)->quantity);
@@ -348,8 +339,7 @@ final class PortfolioTest extends EngineTestCase
         ]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $negative = service('portfolio')->negativeCashAccounts('2026-06-30');
 
@@ -372,8 +362,7 @@ final class PortfolioTest extends EngineTestCase
         ]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->assertCount(1, service('portfolio')->negativeCashAccounts('2026-06-30'));
 
@@ -393,8 +382,7 @@ final class PortfolioTest extends EngineTestCase
         ]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->assertSame([], service('portfolio')->negativeCashAccounts('2026-06-30'));
     }
@@ -407,8 +395,7 @@ final class PortfolioTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
             'stock_id' => $this->bbca, 'quantity' => 5_000, 'price' => 9_000, 'broker_fee' => 15_000,
@@ -423,11 +410,12 @@ final class PortfolioTest extends EngineTestCase
 
         $totals = service('portfolio')->snapshot('2026-06-30')['totals'];
 
-        // Realized 5.000.000, dividen 500.000, fee 15.000 -> 5.485.000
+        // Realized 5.000.000 + dividen 500.000 - fee 15.000 - materai 2 x 10.000
+        // (pembelian Rp80 juta dan penjualan Rp45 juta, masing-masing satu hari)
         $this->assertMoneyEquals('5000000.00', $totals['realized_net']);
         $this->assertMoneyEquals('500000.00', $totals['dividend_income']);
         $this->assertMoneyEquals('15000.00', $totals['broker_fee']);
-        $this->assertMoneyEquals('5485000.00', $totals['net_profit']);
+        $this->assertMoneyEquals('5465000.00', $totals['net_profit']);
 
         // Unrealized besar sekali, tetapi tidak menyentuh laba periode berjalan.
         $this->assertTrue($totals['unrealized']->greaterThan(Money::of('50000000')));

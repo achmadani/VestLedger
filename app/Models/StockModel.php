@@ -14,8 +14,15 @@ class StockModel extends Model
     protected $returnType     = Stock::class;
     protected $useSoftDeletes = true;
     protected $useTimestamps  = true;
-    protected $allowedFields  = ['ticker', 'company_name', 'sector', 'notes', 'is_active'];
+    protected $allowedFields  = [
+        'ticker', 'company_name', 'sector', 'sub_sector', 'industry', 'sub_industry',
+        'sub_industry_code', 'index_membership', 'listing_date', 'listing_board',
+        'shares_outstanding', 'market_cap', 'profile_updated_at', 'notes', 'is_active',
+    ];
     protected $validationRules = [
+        // CodeIgniter mensyaratkan placeholder {id} memiliki aturannya sendiri.
+        // Tanpa baris ini, is_unique[...,id,{id}] melempar LogicException.
+        'id' => 'permit_empty|is_natural_no_zero',
         'ticker'       => 'required|min_length[2]|max_length[10]|alpha_numeric|is_unique[stocks.ticker,id,{id}]',
         'company_name' => 'required|max_length[150]',
         'sector'       => 'permit_empty|max_length[80]',
@@ -67,6 +74,43 @@ class StockModel extends Model
         }
 
         return $options;
+    }
+
+    /**
+     * Pencarian saham untuk kotak ketik-cari pada form transaksi.
+     *
+     * Dengan hampir seribu emiten, dropdown biasa tidak lagi dapat dipakai —
+     * dan mengirim seluruh daftar ke browser berarti memuat ratusan kilobyte
+     * pada setiap pembukaan form (§34). Pencarian dilakukan di database dan
+     * hasilnya dibatasi.
+     *
+     * Kecocokan pada TICKER didahulukan: pengguna mengetik kode, bukan nama.
+     *
+     * @return list<array{id:int, ticker:string, company_name:string, sector:?string}>
+     */
+    public function search(string $query, int $limit = 15): array
+    {
+        $query = trim($query);
+
+        if ($query === '') {
+            return [];
+        }
+
+        $like = $this->db->escapeLikeString($query);
+
+        return $this->db->query(
+            "SELECT id, ticker, company_name, sector
+             FROM stocks
+             WHERE is_active = 1 AND deleted_at IS NULL
+               AND (ticker LIKE ? ESCAPE '!' OR company_name LIKE ? ESCAPE '!')
+             ORDER BY
+                CASE WHEN ticker = ? THEN 0
+                     WHEN ticker LIKE ? ESCAPE '!' THEN 1
+                     ELSE 2 END,
+                ticker ASC
+             LIMIT ?",
+            [$like . '%', '%' . $like . '%', strtoupper($query), $like . '%', $limit]
+        )->getResultArray();
     }
 
     public function findByTicker(string $ticker): ?Stock

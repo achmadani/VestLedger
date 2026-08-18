@@ -63,6 +63,24 @@ $allowMagicLink   = $authConfig->allowMagicLinkLogins ?? false;
             <button type="submit" class="btn btn-primary w-full">Masuk</button>
         </form>
 
+        <?php if (service('googleAuth')->isEnabled()): ?>
+            <div class="divider text-xs text-base-content/50 my-3">atau</div>
+
+            <a href="<?= site_url('auth/google') ?>" class="btn btn-outline w-full gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.24c1.89-1.74 2.98-4.3 2.98-7.35z"/>
+                    <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.42l-3.24-2.5c-.9.6-2.05.96-3.38.96-2.6 0-4.8-1.75-5.59-4.1H3.06v2.58A10 10 0 0 0 12 22z"/>
+                    <path fill="#FBBC05" d="M6.41 13.94a6 6 0 0 1 0-3.83V7.53H3.06a10 10 0 0 0 0 8.97l3.35-2.56z"/>
+                    <path fill="#EA4335" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.87-2.87C16.96 2.99 14.7 2 12 2a10 10 0 0 0-8.94 5.53l3.35 2.58C7.2 7.73 9.4 5.98 12 5.98z"/>
+                </svg>
+                Masuk dengan Google
+            </a>
+
+            <p class="text-[11px] text-base-content/50 text-center mt-2">
+                Hanya alamat email yang sudah terdaftar sebagai pengguna yang dapat masuk.
+            </p>
+        <?php endif; ?>
+
         <?php if ($allowMagicLink): ?>
             <div class="text-center mt-2">
                 <a href="<?= url_to('magic-link') ?>" class="link link-hover text-xs">

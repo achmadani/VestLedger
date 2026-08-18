@@ -67,3 +67,22 @@
 #--------------------------------------------------------------------
 
 # logger.threshold = 4
+
+#--------------------------------------------------------------------
+# LOGIN DENGAN AKUN GOOGLE (opsional)
+#--------------------------------------------------------------------
+# Kosongkan keduanya untuk mematikan login Google; tombolnya otomatis
+# tidak ditampilkan di halaman login.
+#
+# Buat kredensialnya di Google Cloud Console -> APIs & Services ->
+# Credentials -> OAuth client ID, jenis "Web application", lalu daftarkan
+# Authorized redirect URI berikut PERSIS sama:
+#
+#     https://domain-anda.com/auth/google/callback
+#
+# Login Google hanya berhasil untuk alamat email yang SUDAH terdaftar
+# sebagai pengguna aplikasi.
+
+# googleauth.clientId = ''
+# googleauth.clientSecret = ''
+# googleauth.redirectUri = ''

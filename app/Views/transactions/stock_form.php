@@ -22,7 +22,17 @@ $perLot   = investment_config()->sharesPerLot;
 ]) ?>
 
 <form method="post" action="<?= site_url('transactions/' . $slug) ?>"
-      x-data='stockForm(<?= json_encode($positions, JSON_HEX_APOS | JSON_HEX_QUOT) ?>, <?= json_encode($cash, JSON_HEX_APOS | JSON_HEX_QUOT) ?>, <?= $perLot ?>, <?= $isBuy ? 'true' : 'false' ?>)'>
+      x-data='stockForm(<?= json_encode([
+          "positions" => $positions,
+          "cash"      => $cash,
+          "feeRates"  => $feeRates,
+          "perLot"    => $perLot,
+          "isBuy"     => $isBuy,
+          "levyPct"   => investment_config()->exchangeLevyPercent,
+          "taxPct"    => investment_config()->sellTaxPercent,
+          "stampDuty" => investment_config()->stampDutyAmount,
+          "stampMin"  => investment_config()->stampDutyThreshold,
+      ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
     <?= csrf_field() ?>
 
     <div class="grid gap-4 lg:grid-cols-3">
@@ -45,14 +55,7 @@ $perLot   = investment_config()->sharesPerLot;
                         'required' => true,
                         'attrs'    => ['x-model' => 'accountId'],
                     ])
-                    . component('form/select', [
-                        'name'     => 'stock_id',
-                        'label'    => 'Saham',
-                        'options'  => $stocks,
-                        'value'    => old('stock_id'),
-                        'required' => true,
-                        'attrs'    => ['x-model' => 'stockId'],
-                    ])
+                    . component('form/stock_search', ['name' => 'stock_id', 'model' => 'stockId'])
                     . component('form/input', [
                         'name'     => 'price',
                         'label'    => 'Harga per Lembar',
@@ -78,9 +81,21 @@ $perLot   = investment_config()->sharesPerLot;
                     ? 'Seluruhnya masuk ke book cost, tidak menjadi beban periode berjalan.'
                     : 'Fee menjadi beban 5000; pajak & levy menjadi beban 5200.',
                 'body'     => '<div class="grid gap-3 sm:grid-cols-3">'
-                    . component('form/money', ['name' => 'broker_fee', 'label' => 'Broker Fee', 'model' => 'brokerFee'])
-                    . component('form/money', ['name' => 'tax', 'label' => 'Pajak', 'model' => 'tax'])
-                    . component('form/money', ['name' => 'levy', 'label' => 'Levy', 'model' => 'levy'])
+                    . '<label class="form-control"><span class="label-text text-xs pb-1">Broker Fee</span>'
+                    . '<input type="number" min="0" step="1" name="broker_fee" x-model="brokerFee" @input="touched = true" '
+                    . 'class="input input-bordered input-sm w-full num"></label>'
+                    . '<label class="form-control"><span class="label-text text-xs pb-1">Pajak</span>'
+                    . '<input type="number" min="0" step="1" name="tax" x-model="tax" @input="touched = true" '
+                    . 'class="input input-bordered input-sm w-full num"></label>'
+                    . '<label class="form-control"><span class="label-text text-xs pb-1">Levy</span>'
+                    . '<input type="number" min="0" step="1" name="levy" x-model="levy" @input="touched = true" '
+                    . 'class="input input-bordered input-sm w-full num"></label>'
+                    . '</div>'
+                    . '<div class="flex items-center gap-2 mt-2">'
+                    . '<button type="button" class="btn btn-xs btn-ghost" @click="touched = false; applyFees()">'
+                    . 'Hitung ulang dari tarif sekuritas</button>'
+                    . '<span class="text-xs text-base-content/50" x-show="touched" x-cloak>'
+                    . 'Biaya diubah manual — tidak lagi mengikuti tarif otomatis.</span>'
                     . '</div>'
                     . component('form/textarea', ['name' => 'notes', 'label' => 'Catatan', 'rows' => 2, 'class' => 'mt-3']),
             ]) ?>
@@ -159,6 +174,13 @@ $perLot   = investment_config()->sharesPerLot;
                 </div>
             </template>
 
+            <template x-if="stampDutyDue">
+                <div class="flex justify-between">
+                    <span class="text-base-content/60">Bea Materai</span>
+                    <span class="num" x-text="fmt(stampDuty)"></span>
+                </div>
+            </template>
+
             <div class="border-t border-base-300 pt-2 mt-2 space-y-2">
                 <div class="flex justify-between">
                     <span class="text-base-content/60">Kas Rekening Saat Ini</span>
@@ -214,11 +236,49 @@ $perLot   = investment_config()->sharesPerLot;
      * Perhitungan di sini HANYA untuk tampilan. Server menghitung ulang semuanya
      * saat menyimpan, jadi angka di layar tidak pernah menjadi sumber kebenaran.
      */
-    function stockForm(positions, cash, perLot, isBuy) {
+    function stockForm(config) {
         return {
-            positions, cash, perLot, isBuy,
+            ...config,
             accountId: '', stockId: '',
             quantity: 0, price: 0, brokerFee: 0, tax: 0, levy: 0,
+
+            /** Sekali pengguna mengubah biaya sendiri, isian otomatis berhenti. */
+            touched: false,
+
+            init() {
+                // Biaya dihitung ulang setiap kali dasar perhitungannya berubah,
+                // kecuali pengguna sudah mengetik angkanya sendiri.
+                ['accountId', 'quantity', 'price'].forEach(field => {
+                    this.$watch(field, () => this.applyFees());
+                });
+            },
+
+            /**
+             * Memecah tarif all-in menjadi levy, pajak, dan sisanya fee broker —
+             * cerminan persis dari perhitungan di server, semata agar pengguna
+             * melihat angkanya sebelum menyimpan. Server tetap menghitung ulang.
+             */
+            applyFees() {
+                if (this.touched) return;
+
+                const rate = this.feeRates[this.accountId];
+                if (!rate || !this.gross) {
+                    this.brokerFee = 0; this.tax = 0; this.levy = 0;
+                    return;
+                }
+
+                const allIn = Math.round(this.gross * (this.isBuy ? rate.buy : rate.sell) / 100);
+                const levy  = Math.round(this.gross * this.levyPct / 100);
+                const tax   = this.isBuy ? 0 : Math.round(this.gross * this.taxPct / 100);
+
+                this.levy      = levy;
+                this.tax       = tax;
+                this.brokerFee = Math.max(0, allIn - levy - tax);
+            },
+
+            get stampDutyDue() {
+                return this.gross > this.stampMin;
+            },
 
             get positionKey() { return this.accountId + ':' + this.stockId; },
             get position() { return this.positions[this.positionKey] || null; },
@@ -252,9 +312,13 @@ $perLot   = investment_config()->sharesPerLot;
              * Beli mengurangi kas sebesar gross + biaya; jual menambah kas netto.
              */
             get projectedCash() {
+                // Bea materai ikut diperhitungkan karena ia juga mengurangi kas
+                // pada hari yang sama.
+                const duty = this.stampDutyDue ? this.stampDuty : 0;
+
                 return this.isBuy
-                    ? this.currentCash - (this.gross + this.charges)
-                    : this.currentCash + (this.gross - this.charges);
+                    ? this.currentCash - (this.gross + this.charges) - duty
+                    : this.currentCash + (this.gross - this.charges) - duty;
             },
 
             fmt(value, decimals = 0) {
@@ -269,6 +333,61 @@ $perLot   = investment_config()->sharesPerLot;
             },
             fmtQty(value) {
                 return Number(value || 0).toLocaleString('id-ID') + ' lembar';
+            },
+        };
+    }
+
+    /**
+     * Kotak ketik-cari saham.
+     *
+     * Mencari di server dan membatasi hasilnya, alih-alih mengirim seluruh
+     * daftar emiten ke browser pada setiap pembukaan form.
+     */
+    function stockSearch() {
+        return {
+            term: '', results: [], open: false, highlight: 0, selected: null,
+            controller: null,
+
+            async search() {
+                const q = this.term.trim();
+
+                if (q.length < 2) { this.results = []; this.open = false; return; }
+
+                // Batalkan permintaan sebelumnya agar hasil lama tidak menimpa
+                // hasil ketikan terbaru.
+                this.controller?.abort();
+                this.controller = new AbortController();
+
+                try {
+                    const res = await fetch('<?= site_url('api/stocks/search') ?>?q=' + encodeURIComponent(q),
+                        { signal: this.controller.signal, headers: { 'Accept': 'application/json' } });
+
+                    if (!res.ok) { this.results = []; return; }
+
+                    this.results  = await res.json();
+                    this.highlight = 0;
+                    this.open      = this.results.length > 0;
+                } catch (e) {
+                    if (e.name !== 'AbortError') { this.results = []; }
+                }
+            },
+
+            move(step) {
+                if (!this.results.length) return;
+                this.highlight = (this.highlight + step + this.results.length) % this.results.length;
+            },
+
+            choose(row) {
+                if (!row) return;
+
+                this.selected = row;
+                this.term     = row.ticker;
+                this.open     = false;
+
+                // stockId tidak didefinisikan di scope ini, sehingga Alpine
+                // meneruskan penulisannya ke scope induk — yaitu form transaksi,
+                // yang memakainya untuk posisi dan preview.
+                this.stockId = String(row.id);
             },
         };
     }

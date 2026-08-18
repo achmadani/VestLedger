@@ -147,6 +147,32 @@ final class MasterDataAccessTest extends CIUnitTestCase
     }
 
     /**
+     * Komponen tidak boleh mewarisi variabel halaman induknya.
+     *
+     * Sebelum diperbaiki, merender form beli lalu halaman daftar saham dalam
+     * satu proses membuat komponen form/input mengambil variabel $type milik
+     * form beli — yang berisi enum, bukan string — dan halaman gagal dengan
+     * "Object of class StockTransactionType could not be converted to string".
+     */
+    public function testRenderingSeveralPagesDoesNotLeakViewVariables(): void
+    {
+        $owner = $this->makeUser('owner', 'owner');
+
+        service('accountingPeriod')->generateYear((int) date('Y'));
+        service('stockService')->create(['ticker' => 'BBCA', 'company_name' => 'Bank Central Asia Tbk']);
+
+        // Form beli menetapkan variabel bernama $type berisi enum...
+        $this->actingAs($owner)->get('transactions/buy')->assertOK();
+
+        // ...dan halaman ini memanggil form/input tanpa menyebut type.
+        $this->actingAs($owner)->get('master/stocks')->assertOK();
+
+        // Urutan sebaliknya juga harus aman.
+        $this->actingAs($owner)->get('transactions/top-up')->assertOK();
+        $this->actingAs($owner)->get('master/securities')->assertOK();
+    }
+
+    /**
      * Menutup periode adalah aksi berdampak besar; accountant tidak memilikinya.
      */
     public function testAccountantCannotClosePeriods(): void

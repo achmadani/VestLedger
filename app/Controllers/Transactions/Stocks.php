@@ -25,10 +25,10 @@ class Stocks extends BaseController
         return view('transactions/stock_form', [
             'pageTitle' => 'Beli Saham',
             'type'      => StockTransactionType::Buy,
-            'accounts'  => (new SecuritiesAccountModel())->options(),
-            'stocks'    => (new StockModel())->options(),
+            'accounts'  => (new SecuritiesAccountModel())->optionsByUsage(),
             'positions' => $this->positionMap(),
             'cash'      => service('portfolio')->cashBalances(),
+            'feeRates'  => $this->feeRates(),
         ]);
     }
 
@@ -37,10 +37,10 @@ class Stocks extends BaseController
         return view('transactions/stock_form', [
             'pageTitle' => 'Jual Saham',
             'type'      => StockTransactionType::Sell,
-            'accounts'  => (new SecuritiesAccountModel())->options(),
-            'stocks'    => (new StockModel())->options(),
+            'accounts'  => (new SecuritiesAccountModel())->optionsByUsage(),
             'positions' => $this->positionMap(),
             'cash'      => service('portfolio')->cashBalances(),
+            'feeRates'  => $this->feeRates(),
         ]);
     }
 
@@ -102,6 +102,31 @@ class Stocks extends BaseController
     }
 
     /**
+     * Tarif biaya tiap rekening, agar form dapat mengisi biayanya sendiri.
+     *
+     * @return array<int, array{buy:float, sell:float}>
+     */
+    private function feeRates(): array
+    {
+        $rows = db_connect()->query(
+            'SELECT sa.id, s.buy_fee_percent, s.sell_fee_percent
+             FROM securities_accounts sa JOIN securities s ON s.id = sa.securities_id
+             WHERE sa.is_active = 1 AND sa.deleted_at IS NULL'
+        )->getResultArray();
+
+        $rates = [];
+
+        foreach ($rows as $row) {
+            $rates[(int) $row['id']] = [
+                'buy'  => (float) $row['buy_fee_percent'],
+                'sell' => (float) $row['sell_fee_percent'],
+            ];
+        }
+
+        return $rates;
+    }
+
+    /**
      * Posisi saat ini per (rekening, saham), untuk preview form jual (§33).
      *
      * Dikirim sebagai data ke Alpine sehingga preview average cost dan estimasi
@@ -118,6 +143,8 @@ class Stocks extends BaseController
                 'quantity'     => $position->quantity,
                 'book_value'   => $position->bookValue()->toDecimalString(),
                 'average_cost' => $position->averageCost()->toDecimalString(),
+                'ticker'       => $position->ticker,
+                'company_name' => $position->company_name,
             ];
         }
 

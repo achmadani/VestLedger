@@ -17,7 +17,15 @@ class View extends BaseView
      *
      * @var bool
      */
-    public $saveData = true;
+    /**
+     * Data view TIDAK dipertahankan antar pemanggilan render.
+     *
+     * Dengan nilai true (bawaan CI4), variabel dari satu halaman ikut terbawa
+     * ke render berikutnya dalam proses yang sama. Itu tidak terlihat pada
+     * request web biasa yang hanya merender sekali, tetapi menjadi sumber
+     * kebocoran variabel yang membingungkan pada test maupun perintah CLI.
+     */
+    public $saveData = false;
 
     /**
      * Parser Filters map a filter name with any PHP callable. When the

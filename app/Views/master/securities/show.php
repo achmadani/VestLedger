@@ -46,6 +46,19 @@ if ($canManage) {
     'actions'     => $actions,
 ]) ?>
 
+<div class="grid gap-3 sm:grid-cols-2 mb-4">
+    <?= component('stat', [
+        'label' => 'Fee Beli',
+        'value' => fmt_number($security->buyFeePercent(), 3) . '%',
+        'sub'   => 'All-in, sudah termasuk levy bursa',
+    ]) ?>
+    <?= component('stat', [
+        'label' => 'Fee Jual',
+        'value' => fmt_number($security->sellFeePercent(), 3) . '%',
+        'sub'   => 'All-in, sudah termasuk PPh final dan levy',
+    ]) ?>
+</div>
+
 <?php if ($security->notes): ?>
     <div class="mb-4">
         <?= component('card', ['title' => 'Catatan', 'body' => '<p class="text-sm whitespace-pre-line">' . esc($security->notes) . '</p>']) ?>

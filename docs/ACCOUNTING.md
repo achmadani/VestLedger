@@ -150,6 +150,52 @@ Transfer antar sekuritas hanya memindahkan dimensi `securities_account_id` pada
 akun yang sama, sehingga **total kas global tidak berubah** dan tidak ada
 revenue/expense yang tersentuh (§40.5).
 
+## Biaya transaksi saham
+
+Broker mengiklankan satu tarif all-in — misalnya **beli 0,15%, jual 0,25%** —
+padahal di dalamnya terkandung tiga hal yang berbeda perlakuan akuntansinya:
+
+| Komponen | Tarif | Beli | Jual |
+|---|---|---|---|
+| Levy bursa (IDX + KPEI + KSEI) | 0,043% | ✓ | ✓ |
+| PPh final atas penjualan | 0,1% | — | ✓ |
+| Fee broker | **sisanya** | ✓ | ✓ |
+
+Tarif all-in disimpan **per sekuritas** (`securities.buy_fee_percent` dan
+`sell_fee_percent`), karena tiap broker memasang tarifnya sendiri.
+
+Fee broker dihitung sebagai **sisa**, bukan dari persentasenya sendiri, sehingga
+jumlah ketiga komponen selalu sama persis dengan tarif yang tertera di
+konfirmasi broker — tidak pernah meleset karena tiga pembulatan terpisah.
+
+Tarif yang lebih kecil daripada komponen regulatifnya ditolak saat disimpan:
+0,05% pada sisi jual mustahil, karena levy dan PPh saja sudah 0,143%.
+
+Pada **pembelian**, ketiganya tetap dikapitalisasi ke book cost — akun beban
+tidak tersentuh. Pada **penjualan**, fee broker masuk 5000 dan pajak + levy
+masuk 5200.
+
+## Bea materai
+
+Setiap broker menerbitkan satu **Trade Confirmation per hari**, dan bea materai
+melekat pada dokumen itu — bukan pada tiap transaksi. Karena itu:
+
+- dasar pengenaannya adalah **total nilai bruto seluruh pembelian dan penjualan
+  pada satu rekening sekuritas di tanggal yang sama** (beli dan jual
+  dijumlahkan, tidak disalinghapuskan);
+- ambangnya **melebihi** Rp10.000.000, bukan mencapai;
+- materai Rp10.000 dikenakan **sekali** untuk hari itu;
+- masuk akun **5200 Pajak & Levy**, karena ia pungutan negara atas dokumen,
+  bukan jasa broker.
+
+Perhitungannya bersifat **menyesuaikan diri**, bukan sekali tambah: setiap kali
+transaksi hari itu berubah, nilainya dihitung ulang dan materai dibuat atau
+dibalik seperlunya. Tanpa itu, transaksi yang dimasukkan mundur dan melewati
+ambang tidak akan pernah menghasilkan materai, dan transaksi yang dibatalkan
+akan meninggalkan materai tanpa dasar.
+
+Materai dibuat sistem dan tidak muncul sebagai pilihan jenis transaksi manual.
+
 ## Konvensi nilai pada transaksi kas
 
 Seluruh transaksi kas memakai konvensi yang sama:

@@ -29,6 +29,8 @@ foreach ($securities as $security) {
         . '<td class="font-mono font-medium">' . esc($security->code) . '</td>'
         . '<td>' . esc($security->name) . '</td>'
         . '<td class="num">' . $count . '</td>'
+        . '<td class="num text-xs">' . esc(fmt_number((float) $security->buy_fee_percent, 3)) . '%</td>'
+        . '<td class="num text-xs">' . esc(fmt_number((float) $security->sell_fee_percent, 3)) . '%</td>'
         . '<td>' . $status . '</td>'
         . '<td class="text-right"><a href="' . site_url('master/securities/' . $security->id) . '" class="btn btn-ghost btn-xs">Detail</a></td>'
         . '</tr>';
@@ -42,7 +44,8 @@ $body = $securities === []
         'actions'     => $actions,
     ])
     : '<div class="overflow-x-auto"><table class="table table-sm table-zebra">'
-        . '<thead><tr><th>Kode</th><th>Nama</th><th class="num">Rekening</th><th>Status</th><th></th></tr></thead>'
+        . '<thead><tr><th>Kode</th><th>Nama</th><th class="num">Rekening</th>'
+        . '<th class="num">Fee Beli</th><th class="num">Fee Jual</th><th>Status</th><th></th></tr></thead>'
         . '<tbody>' . $rows . '</tbody></table></div>';
 ?>
 

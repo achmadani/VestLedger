@@ -18,11 +18,14 @@ use CodeIgniter\Entity\Entity;
 class Stock extends Entity
 {
     protected $casts = [
-        'id'        => 'int',
-        'is_active' => 'boolean',
+        'id'                 => 'int',
+        'is_active'          => 'boolean',
+        'shares_outstanding' => '?int',
     ];
 
-    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
+    // Kolom tanggal harus terdaftar di sini agar dikembalikan sebagai objek
+    // Time; tanpa itu ia tetap berupa string dan pemanggilan ->format() gagal.
+    protected $dates = ['listing_date', 'profile_updated_at', 'created_at', 'updated_at', 'deleted_at'];
 
     /**
      * Ticker selalu disimpan huruf besar.

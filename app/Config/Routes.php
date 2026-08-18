@@ -23,6 +23,22 @@ $routes->get('/', 'Home::index');
 service('auth')->routes($routes, ['except' => ['register']]);
 
 /*
+ | Shield hanya mendaftarkan logout sebagai GET. Aplikasi ini memakai form POST
+ | ber-CSRF untuk logout, karena logout lewat GET dapat dipicu pihak lain hanya
+ | dengan menyisipkan <img src=".../logout"> di halaman mana pun.
+ |
+ | Rute GET bawaan Shield sengaja dibiarkan agar tautan lama tetap bekerja.
+ */
+$routes->post('logout', '\CodeIgniter\Shield\Controllers\LoginController::logoutAction');
+
+/*
+ | Login dengan akun Google. Kedua rute harus dapat diakses tamu — justru
+ | inilah alur yang membuat mereka menjadi pengguna yang login.
+ */
+$routes->get('auth/google', 'Auth\Google::redirectToProvider');
+$routes->get('auth/google/callback', 'Auth\Google::callback');
+
+/*
  |--------------------------------------------------------------------------
  | Rute aplikasi (wajib login)
  |--------------------------------------------------------------------------
@@ -53,6 +69,8 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
 
         // Saham
         $routes->get('stocks', 'Master\Stocks::index', ['filter' => 'permission:masterdata.view']);
+        $routes->get('stocks/import', 'Master\Stocks::importForm', ['filter' => 'permission:masterdata.manage']);
+        $routes->post('stocks/import', 'Master\Stocks::import', ['filter' => 'permission:masterdata.manage']);
         $routes->get('stocks/new', 'Master\Stocks::new', ['filter' => 'permission:masterdata.manage']);
         $routes->post('stocks', 'Master\Stocks::create', ['filter' => 'permission:masterdata.manage']);
         $routes->get('stocks/(:num)/edit', 'Master\Stocks::edit/$1', ['filter' => 'permission:masterdata.manage']);
@@ -67,6 +85,9 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
         $routes->post('accounts/(:num)', 'Master\Accounts::update/$1', ['filter' => 'permission:masterdata.manage']);
         $routes->post('accounts/(:num)/delete', 'Master\Accounts::delete/$1', ['filter' => 'permission:masterdata.manage']);
     });
+
+    // Pencarian saham untuk kotak ketik-cari; tetap di balik autentikasi.
+    $routes->get('api/stocks/search', 'Api\Stocks::search', ['filter' => 'permission:transaction.view']);
 
     // ---------------------------------------------------------------- Portofolio
     $routes->get('portfolio', 'Portfolio::index', ['filter' => 'permission:portfolio.view']);

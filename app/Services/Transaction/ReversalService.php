@@ -31,6 +31,7 @@ class ReversalService
         private PositionService $positions,
         private JournalPoster $poster,
         private AuditLogger $audit,
+        private StampDutyService $stampDuty,
     ) {
     }
 
@@ -126,6 +127,14 @@ class ReversalService
             $this->restorePosition($transaction);
 
             $this->stocks->update($id, ['status' => PostingStatus::Reversed->value]);
+
+            // Setelah pembatalan, total hari itu bisa turun di bawah ambang —
+            // materainya ikut dibalik agar tidak ada biaya yang tersisa tanpa
+            // dasar transaksi.
+            $this->stampDuty->syncFor(
+                $transaction->securities_account_id,
+                $transaction->transaction_date->format('Y-m-d'),
+            );
 
             $this->audit->record(
                 'reversed',

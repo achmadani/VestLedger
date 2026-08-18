@@ -225,10 +225,36 @@ if (! function_exists('component')) {
     /**
      * Merender komponen UI reusable dari app/Views/components.
      *
-     * saveData=false agar props satu komponen tidak bocor ke komponen berikutnya.
+     * Memakai instance View TERSENDIRI, bukan renderer utama aplikasi.
+     *
+     * Alasannya bukan sekadar kerapian. Helper view() bawaan meneruskan seluruh
+     * data view yang sedang aktif ke berkas yang dirender, sehingga komponen
+     * dengan prop opsional diam-diam mewarisi variabel bernama sama dari
+     * halaman induknya. Contoh nyatanya: halaman daftar saham memanggil
+     * form/input tanpa menyebut `type`, dan komponen itu justru mengambil
+     * variabel `$type` milik halaman lain — yang berisi enum, bukan string.
+     *
+     * Dengan renderer terpisah, satu-satunya variabel yang terlihat di dalam
+     * komponen adalah props yang benar-benar dikirim kepadanya.
      */
     function component(string $name, array $props = []): string
     {
-        return view('components/' . $name, $props, ['saveData' => false]);
+        static $renderer = null;
+
+        if ($renderer === null) {
+            $renderer = new \CodeIgniter\View\View(
+                config(\Config\View::class),
+                APPPATH . 'Views' . DIRECTORY_SEPARATOR,
+                service('locator'),
+                CI_DEBUG,
+                service('logger'),
+            );
+        }
+
+        return $renderer->setData($props, 'raw')->render(
+            'components/' . $name,
+            null,
+            false,
+        );
     }
 }

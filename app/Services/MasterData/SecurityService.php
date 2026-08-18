@@ -8,6 +8,7 @@ use App\Entities\Security;
 use App\Exceptions\BusinessRuleException;
 use App\Models\SecuritiesAccountModel;
 use App\Models\SecurityModel;
+use App\Enums\StockTransactionType;
 
 /**
  * Business logic master sekuritas dan rekening/RDN-nya (§4.1, §5).
@@ -33,6 +34,7 @@ class SecurityService
     public function create(array $data, array $accountData = []): Security
     {
         $data = $this->normalise($data);
+        $this->assertFeesCoverRegulatoryCharges($data);
 
         // Transaksi dikendalikan manual, BUKAN transStart()/transComplete().
         // transComplete() hanya melakukan rollback bila terjadi error DATABASE;
@@ -82,7 +84,16 @@ class SecurityService
             throw new BusinessRuleException('Sekuritas tidak ditemukan.');
         }
 
-        if ($this->securities->update($id, $this->normalise($data)) === false) {
+        $data = $this->normalise($data);
+        $this->assertFeesCoverRegulatoryCharges($data);
+
+        // Aturan is_unique[...,id,{id}] mengganti {id} dengan nilai 'id' pada
+        // DATA yang divalidasi, bukan dengan id yang dikirim ke update().
+        // Tanpa baris ini, menyimpan ulang tanpa mengubah kode akan ditolak
+        // sebagai duplikat terhadap dirinya sendiri.
+        $data['id'] = $id;
+
+        if ($this->securities->update($id, $data) === false) {
             throw new BusinessRuleException(
                 'Perubahan gagal disimpan.',
                 $this->flattenErrors($this->securities->errors())
@@ -168,6 +179,42 @@ class SecurityService
                 'Rekening gagal diperbarui.',
                 $this->flattenErrors($this->accounts->errors())
             );
+        }
+    }
+
+    /**
+     * Tarif all-in tidak boleh lebih kecil daripada komponen regulatifnya.
+     *
+     * Levy bursa dan PPh final sudah termasuk di dalam tarif all-in; bila tarif
+     * yang dimasukkan lebih kecil dari keduanya, fee broker menjadi negatif dan
+     * biaya transaksi tidak akan pernah cocok dengan konfirmasi broker.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function assertFeesCoverRegulatoryCharges(array $data): void
+    {
+        $calculator = service('tradingFees');
+
+        foreach ([
+            'buy_fee_percent'  => StockTransactionType::Buy,
+            'sell_fee_percent' => StockTransactionType::Sell,
+        ] as $field => $type) {
+            if (! isset($data[$field]) || $data[$field] === '') {
+                continue;
+            }
+
+            $percent = (float) $data[$field];
+            $minimum = $calculator->minimumPercent($type);
+
+            if ($percent > 0 && $percent < $minimum) {
+                throw new BusinessRuleException(sprintf(
+                    'Tarif %s sebesar %s%% lebih kecil daripada levy dan pajak yang wajib dipungut (%s%%). '
+                    . 'Tarif all-in tidak mungkin di bawah komponen regulatifnya.',
+                    $type === StockTransactionType::Buy ? 'beli' : 'jual',
+                    rtrim(rtrim(number_format($percent, 5, '.', ''), '0'), '.'),
+                    rtrim(rtrim(number_format($minimum, 5, '.', ''), '0'), '.')
+                ));
+            }
         }
     }
 

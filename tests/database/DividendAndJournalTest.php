@@ -247,8 +247,7 @@ final class DividendAndJournalTest extends EngineTestCase
         ]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $lines = new JournalLineModel();
 

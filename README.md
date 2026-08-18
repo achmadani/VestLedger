@@ -11,6 +11,30 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 
 Riwayat perubahan ada di **[CHANGELOG.md](CHANGELOG.md)**.
 
+## Menyiapkan data master saham
+
+Daftar emiten IDX (964 saham) sudah tersedia di
+`app/Database/Seeds/data/idx-stocks.csv` dan diimpor dengan:
+
+```bash
+make import-stocks
+```
+
+Untuk memperbarui setelah ada IPO, unduh data terbaru dari IDX, simpan sebagai
+**CSV UTF-8**, lalu unggah lewat *Master Data → Saham → Impor CSV*, atau:
+
+```bash
+php spark vestledger:import-stocks berkas-anda.csv
+```
+
+Impor bersifat memperbarui — saham yang sudah ada disesuaikan profilnya, yang
+belum ada ditambahkan, dan tidak ada yang dihapus. Status aktif/nonaktif tidak
+pernah ditimpa.
+
+> Formatnya CSV, bukan XLSX, karena membaca XLSX memerlukan PhpSpreadsheet —
+> sekitar 5 MB dependency beserta ekstensi zip dan xml — untuk pekerjaan yang
+> dilakukan beberapa kali setahun.
+
 ## Status pembangunan
 
 | Phase | Lingkup | Status |
@@ -119,6 +143,7 @@ make dev        # Tailwind watch mode selama mengembangkan UI
 make build      # build ulang CSS + salin Alpine.js ke public/assets
 make seed       # isi master data awal (idempoten)
 make health     # periksa integritas akuntansi & konfigurasi keamanan
+make import-stocks  # impor master saham dari CSV bawaan
 make rebuild    # bangun ulang posisi dari transaksi (buku besar tidak disentuh)
 make test       # jalankan seluruh test
 make migrate    # jalankan migrasi database

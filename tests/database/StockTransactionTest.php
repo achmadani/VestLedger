@@ -143,7 +143,9 @@ final class StockTransactionTest extends EngineTestCase
 
         $this->assertMoneyEquals('4990000.00', $this->accountBalance(AccountCode::RealizedGain));
         $this->assertMoneyEquals('15000.00', $this->accountBalance(AccountCode::BrokerFee), 'Fee jual menjadi beban');
-        $this->assertMoneyEquals('5000.00', $this->accountBalance(AccountCode::TaxAndLevy));
+        // Levy jual 5.000 + bea materai 2 x 10.000 (hari beli Rp80jt dan hari
+        // jual Rp45jt, keduanya melewati ambang Rp10 juta).
+        $this->assertMoneyEquals('25000.00', $this->accountBalance(AccountCode::TaxAndLevy));
         $this->assertMoneyEquals('0.00', $this->accountBalance(AccountCode::RealizedLoss));
 
         // Posisi tersisa separuh, book value tersisa separuh.
@@ -218,16 +220,14 @@ final class StockTransactionTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 1_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 1_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $journalsBefore = $this->db->table('journal_entries')->countAllResults();
 
         try {
             service('stockTransactions')->sell([
                 'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-                'stock_id' => $this->bbca, 'quantity' => 1_001, 'price' => 1_200,
-            ]);
+                'stock_id' => $this->bbca, 'quantity' => 1_001, 'price' => 1_200, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
             $this->fail('Penjualan melebihi kepemilikan seharusnya ditolak.');
         } catch (BusinessRuleException $e) {
             $this->assertMatchesRegularExpression('/melebihi kepemilikan/', $e->getMessage());
@@ -247,8 +247,7 @@ final class StockTransactionTest extends EngineTestCase
 
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ipot,
-            'stock_id' => $this->bbca, 'quantity' => 100, 'price' => 1_200,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 100, 'price' => 1_200, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
     }
 
     // ------------------------------------------------------- Multi sekuritas
@@ -264,12 +263,10 @@ final class StockTransactionTest extends EngineTestCase
 
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-06', 'securities_account_id' => $this->ipot,
-            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->assertSame('8000.0000', $this->position($this->ajaib, $this->bbca)->averageCost()->toDecimalString());
         $this->assertSame('9000.0000', $this->position($this->ipot, $this->bbca)->averageCost()->toDecimalString());
@@ -292,14 +289,12 @@ final class StockTransactionTest extends EngineTestCase
         foreach ([$this->ajaib, $this->ipot] as $account) {
             service('stockTransactions')->buy([
                 'transaction_date' => '2026-01-05', 'securities_account_id' => $account,
-                'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-            ]);
+                'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         }
 
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->assertSame(0, $this->position($this->ajaib, $this->bbca)->quantity);
         $this->assertSame(1_000, $this->position($this->ipot, $this->bbca)->quantity);

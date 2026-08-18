@@ -121,6 +121,58 @@ class Stocks extends BaseController
         return redirect()->to('/master/stocks')->with('success', 'Saham berhasil dihapus.');
     }
 
+    public function importForm(): string
+    {
+        return view('master/stocks/import', [
+            'pageTitle' => 'Impor Master Saham',
+            'lastImport' => $this->stocks
+                ->where('profile_updated_at IS NOT NULL')
+                ->orderBy('profile_updated_at', 'desc')
+                ->first()?->profile_updated_at,
+            'total' => $this->stocks->countAllResults(),
+        ]);
+    }
+
+    public function import(): RedirectResponse
+    {
+        $file = $this->request->getFile('csv');
+
+        if ($file === null || ! $file->isValid()) {
+            return redirect()->to('/master/stocks/import')
+                ->with('error', 'Berkas belum dipilih atau gagal diunggah: '
+                    . ($file?->getErrorString() ?? 'tidak ada berkas'));
+        }
+
+        // Berkas dibaca langsung dari lokasi sementara dan TIDAK pernah
+        // dipindahkan ke direktori publik. Nama berkas dari pengguna juga tidak
+        // pernah dipakai sebagai path (§36).
+        if (! in_array(strtolower($file->getClientExtension()), ['csv', 'txt'], true)) {
+            return redirect()->to('/master/stocks/import')
+                ->with('error', 'Hanya berkas CSV yang diterima. Simpan spreadsheet Anda sebagai CSV terlebih dahulu.');
+        }
+
+        try {
+            $result = service('stockImport')->importFile($file->getTempName());
+        } catch (BusinessRuleException $e) {
+            return $this->redirectWithRuleError($e, '/master/stocks/import');
+        }
+
+        $message = sprintf(
+            '%d saham baru, %d diperbarui, %d dilewati.',
+            $result['created'],
+            $result['updated'],
+            $result['skipped']
+        );
+
+        $redirect = redirect()->to('/master/stocks')->with('success', 'Impor selesai: ' . $message);
+
+        if ($result['problems'] !== []) {
+            $redirect->with('warning', implode(' ', array_slice($result['problems'], 0, 5)));
+        }
+
+        return $redirect;
+    }
+
     /**
      * @return array<string, mixed>
      */

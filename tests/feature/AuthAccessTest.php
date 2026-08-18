@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\Shield\Entities\User;
+use CodeIgniter\Shield\Models\UserModel;
+use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
@@ -17,6 +20,7 @@ use CodeIgniter\Test\FeatureTestTrait;
  */
 final class AuthAccessTest extends CIUnitTestCase
 {
+    use AuthenticationTesting;
     use DatabaseTestTrait;
     use FeatureTestTrait;
 
@@ -60,6 +64,37 @@ final class AuthAccessTest extends CIUnitTestCase
 
         $result->assertOK();
         $result->assertSee(csrf_token());
+    }
+
+    /**
+     * Logout dipicu lewat form POST ber-CSRF, bukan tautan biasa.
+     *
+     * Shield hanya mendaftarkan logout sebagai GET, sehingga tombol keluar di
+     * navbar sempat menghasilkan 404. Rute POST ditambahkan sendiri karena
+     * logout lewat GET dapat dipicu pihak lain hanya dengan menyisipkan
+     * <img src=".../logout"> di halaman mana pun.
+     */
+    public function testLogoutAcceptsThePostRequestSentByTheNavbar(): void
+    {
+        $users = new UserModel();
+        $user  = new User([
+            'username' => 'keluar' . bin2hex(random_bytes(4)),
+            'email'    => bin2hex(random_bytes(5)) . '@vestledger.test',
+            'password' => 'kata-sandi-uji-yang-panjang',
+        ]);
+        $users->save($user);
+        $user = $users->findById($users->getInsertID());
+        $user->addGroup('owner');
+
+        $result = $this->actingAs($user)->withBodyFormat('html')->post('logout', [
+            csrf_token() => csrf_hash(),
+        ]);
+
+        // Yang penting: TIDAK 404. Sebelum perbaikan, tombol keluar di navbar
+        // menghasilkan "Can't find a route for 'POST: logout'".
+        $this->assertNotSame(404, $result->response()->getStatusCode());
+        $result->assertRedirect();
+        $this->assertFalse(auth()->loggedIn(), 'Sesi harus berakhir setelah keluar.');
     }
 
     /**

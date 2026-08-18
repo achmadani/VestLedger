@@ -7,6 +7,7 @@ $canManage = auth()->user()?->can('masterdata.manage') ?? false;
 
 $actions = $canManage
     ? '<a href="' . site_url('master/stocks/new') . '" class="btn btn-primary btn-sm">Tambah Saham</a>'
+        . '<a href="' . site_url('master/stocks/import') . '" class="btn btn-sm">Impor CSV</a>'
     : null;
 
 $sectorOptions = [];
@@ -79,7 +80,10 @@ foreach ($stocks as $stock) {
     $rows .= '<tr class="hover">'
         . '<td class="font-mono font-semibold">' . esc($stock->ticker) . '</td>'
         . '<td>' . esc($stock->company_name) . '</td>'
-        . '<td>' . esc($stock->sector ?? '-') . '</td>'
+        . '<td class="text-xs">' . esc($stock->sector ?? '-')
+            . ($stock->sub_sector ? '<br><span class="text-base-content/50">' . esc($stock->sub_sector) . '</span>' : '') . '</td>'
+        . '<td class="text-xs">' . ($stock->listing_board
+            ? '<span class="badge badge-ghost badge-xs">' . esc($stock->listing_board) . '</span>' : '-') . '</td>'
         . '<td>' . $status . '</td>'
         . '<td class="text-right whitespace-nowrap">' . $rowActions . '</td>'
         . '</tr>';
@@ -92,7 +96,7 @@ $body = $stocks === []
         'actions'     => $actions,
     ])
     : '<div class="overflow-x-auto"><table class="table table-sm table-zebra">'
-        . '<thead><tr><th>Ticker</th><th>Perusahaan</th><th>Sektor</th><th>Status</th><th></th></tr></thead>'
+        . '<thead><tr><th>Ticker</th><th>Perusahaan</th><th>Sektor</th><th>Papan</th><th>Status</th><th></th></tr></thead>'
         . '<tbody>' . $rows . '</tbody></table></div>';
 ?>
 

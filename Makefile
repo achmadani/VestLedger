@@ -7,7 +7,7 @@ PHP  := /opt/homebrew/opt/php@8.3/bin/php
 NVM  := . $$HOME/.nvm/nvm.sh && nvm use 20 >/dev/null &&
 PORT := 8123
 
-.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks health rebuild
+.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks health rebuild import-stocks
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -67,6 +67,9 @@ seed: ## Isi master data awal (CoA, sekuritas, saham, periode tahun berjalan)
 
 health: ## Periksa integritas akuntansi dan konfigurasi keamanan
 	$(PHP) spark vestledger:health
+
+import-stocks: ## Impor master saham dari CSV. Contoh: make import-stocks FILE=data.csv
+	$(PHP) spark vestledger:import-stocks $(FILE)
 
 rebuild: ## Bangun ulang posisi saham dari transaksi (buku besar tidak disentuh)
 	$(PHP) spark vestledger:rebuild-positions

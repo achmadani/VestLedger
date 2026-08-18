@@ -52,6 +52,35 @@ class Investment extends BaseConfig
     public int $averageCostDisplayScale = 2;
 
     /**
+     * Komponen biaya transaksi bursa, dalam PERSEN dari nilai bruto.
+     *
+     * Tarif fee broker berbeda-beda dan disimpan per sekuritas. Dua komponen di
+     * bawah ini bersifat regulatif dan sama untuk semua broker, sehingga
+     * ditempatkan di sini — bila regulator mengubahnya, cukup satu berkas ini
+     * yang disesuaikan.
+     */
+
+    /** Levy bursa (IDX + KPEI + KSEI), dikenakan pada pembelian maupun penjualan. */
+    public float $exchangeLevyPercent = 0.043;
+
+    /** PPh final atas penjualan saham; hanya dikenakan pada sisi jual. */
+    public float $sellTaxPercent = 0.1;
+
+    /** Tarif fee bawaan saat sekuritas baru dibuat. */
+    public float $defaultBuyFeePercent  = 0.15;
+    public float $defaultSellFeePercent = 0.25;
+
+    /**
+     * Bea materai atas konfirmasi transaksi harian.
+     *
+     * Setiap broker menerbitkan satu Trade Confirmation per hari, dan bea
+     * materai melekat pada dokumen itu — bukan pada tiap transaksi. Karena itu
+     * pengenaannya dihitung per sekuritas per tanggal.
+     */
+    public int $stampDutyAmount    = 10000;
+    public int $stampDutyThreshold = 10000000;
+
+    /**
      * Tema DaisyUI yang tersedia untuk dipilih pengguna (§30).
      * Menambah tema cukup dengan menambah entri di sini DAN di resources/css/app.css.
      */

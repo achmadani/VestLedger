@@ -78,6 +78,42 @@ class SecuritiesAccountModel extends Model
     }
 
     /**
+     * Dropdown rekening aktif, YANG PALING SERING DIPAKAI LEBIH DULU.
+     *
+     * Urutan alfabetis memaksa pengguna mencari rekening yang sama berulang
+     * kali setiap kali mencatat transaksi. Frekuensi pemakaian jauh lebih
+     * berguna: rekening yang paling sering ditransaksikan hampir selalu
+     * rekening yang sedang dipakai.
+     *
+     * Dihitung dalam satu query dengan LEFT JOIN agar rekening yang belum
+     * pernah dipakai tetap muncul — di urutan bawah.
+     *
+     * @return array<int, string>
+     */
+    public function optionsByUsage(): array
+    {
+        $rows = $this->db->query(
+            "SELECT sa.id, s.code, sa.label, COUNT(st.id) AS usage_count
+             FROM securities_accounts sa
+             JOIN securities s ON s.id = sa.securities_id
+             LEFT JOIN stock_transactions st
+                    ON st.securities_account_id = sa.id AND st.status = 'posted'
+             WHERE sa.is_active = 1 AND s.is_active = 1
+               AND sa.deleted_at IS NULL AND s.deleted_at IS NULL
+             GROUP BY sa.id, s.code, sa.label
+             ORDER BY usage_count DESC, s.code ASC, sa.label ASC"
+        )->getResultArray();
+
+        $options = [];
+
+        foreach ($rows as $row) {
+            $options[(int) $row['id']] = $row['code'] . ' — ' . $row['label'];
+        }
+
+        return $options;
+    }
+
+    /**
      * @return list<SecuritiesAccount>
      */
     public function forSecurities(int $securitiesId): array

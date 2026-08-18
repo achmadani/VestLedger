@@ -24,6 +24,7 @@ use App\Services\Accounting\DocumentNumberService;
 use App\Services\Accounting\JournalPoster;
 use App\Services\Accounting\OpeningBalanceService;
 use App\Services\MasterData\SecurityService;
+use App\Services\MasterData\StockImportService;
 use App\Services\MasterData\StockService;
 use App\Services\Portfolio\MarketPriceService;
 use App\Services\Portfolio\PortfolioService;
@@ -34,7 +35,10 @@ use App\Services\Reporting\PeriodicReportService;
 use App\Services\Transaction\CashTransactionService;
 use App\Services\Transaction\DividendTransactionService;
 use App\Services\Transaction\ReversalService;
+use App\Services\Transaction\StampDutyService;
 use App\Services\Transaction\StockTransactionService;
+use App\Services\Transaction\TradingFeeCalculator;
+use App\Services\GoogleAuthService;
 use App\Services\UserAccountService;
 use CodeIgniter\Shield\Models\UserModel;
 use CodeIgniter\Config\BaseService;
@@ -66,6 +70,15 @@ class Services extends BaseService
         return new StockService(new StockModel());
     }
 
+    public static function stockImport(bool $getShared = true): StockImportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('stockImport');
+        }
+
+        return new StockImportService(new StockModel(), static::auditLogger());
+    }
+
     public static function chartOfAccounts(bool $getShared = true): ChartOfAccountsService
     {
         if ($getShared) {
@@ -82,6 +95,19 @@ class Services extends BaseService
         }
 
         return new AccountingPeriodService(new AccountingPeriodModel());
+    }
+
+    public static function googleAuth(bool $getShared = true): GoogleAuthService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('googleAuth');
+        }
+
+        return new GoogleAuthService(
+            config(\Config\GoogleAuth::class),
+            new UserModel(),
+            static::auditLogger(),
+        );
     }
 
     public static function userAccounts(bool $getShared = true): UserAccountService
@@ -222,6 +248,30 @@ class Services extends BaseService
         );
     }
 
+    public static function tradingFees(bool $getShared = true): TradingFeeCalculator
+    {
+        if ($getShared) {
+            return static::getSharedInstance('tradingFees');
+        }
+
+        return new TradingFeeCalculator(config(\Config\Investment::class));
+    }
+
+    public static function stampDuty(bool $getShared = true): StampDutyService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('stampDuty');
+        }
+
+        return new StampDutyService(
+            new CashTransactionModel(),
+            static::journalPoster(),
+            static::documentNumber(),
+            static::auditLogger(),
+            config(\Config\Investment::class),
+        );
+    }
+
     public static function stockTransactions(bool $getShared = true): StockTransactionService
     {
         if ($getShared) {
@@ -231,11 +281,14 @@ class Services extends BaseService
         return new StockTransactionService(
             new StockTransactionModel(),
             new SecuritiesAccountModel(),
+            new SecurityModel(),
             new StockModel(),
+            static::tradingFees(),
             static::positions(),
             static::journalPoster(),
             static::documentNumber(),
             static::auditLogger(),
+            static::stampDuty(),
         );
     }
 
@@ -269,6 +322,7 @@ class Services extends BaseService
             static::positions(),
             static::journalPoster(),
             static::auditLogger(),
+            static::stampDuty(),
         );
     }
 }

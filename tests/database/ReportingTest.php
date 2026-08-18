@@ -94,11 +94,13 @@ final class ReportingTest extends EngineTestCase
             $byCode[$row['code']] = $row['amount'];
         }
 
-        // Kas 100jt - 80.020.000 + 44.985.000 + 450.000 - 10jt + 50jt = 105.415.000
-        $this->assertMoneyEquals('105415000.00', $byCode['1000']);
+        // Kas 100jt - 80.020.000 + 44.985.000 + 450.000 - 10jt + 50jt = 105.415.000,
+        // dikurangi bea materai 2 x 10.000 (hari pembelian Rp80jt dan hari
+        // penjualan Rp45jt, masing-masing melewati ambang Rp10 juta).
+        $this->assertMoneyEquals('105395000.00', $byCode['1000']);
         // Portofolio: 80.020.000 - 40.010.000
         $this->assertMoneyEquals('40010000.00', $byCode['1100']);
-        $this->assertMoneyEquals('145425000.00', $bs['total_assets']);
+        $this->assertMoneyEquals('145405000.00', $bs['total_assets']);
     }
 
     /**
@@ -130,9 +132,9 @@ final class ReportingTest extends EngineTestCase
         // Realized = gross 45.000.000 - book value dilepas 40.010.000, dan book
         // value itu separuh dari 80.020.000 yang sudah termasuk fee pembelian.
         $this->assertMoneyEquals('5490000.00', $is['total_revenue']);
-        // Beban: fee jual 15.000 + pajak dividen 50.000
-        $this->assertMoneyEquals('65000.00', $is['total_expense']);
-        $this->assertMoneyEquals('5425000.00', $is['net_profit']);
+        // Beban: fee jual 15.000 + pajak dividen 50.000 + bea materai 2 x 10.000
+        $this->assertMoneyEquals('85000.00', $is['total_expense']);
+        $this->assertMoneyEquals('5405000.00', $is['net_profit']);
 
         // Unrealized tidak boleh muncul sama sekali di Laba Rugi (§13, §40.2).
         $codes = array_merge(array_column($is['revenue'], 'code'), array_column($is['expenses'], 'code'));
@@ -143,11 +145,15 @@ final class ReportingTest extends EngineTestCase
 
         $unrealized = service('portfolio')->snapshot('2026-06-30')['totals']['unrealized'];
         $this->assertTrue($unrealized->isPositive(), 'Skenario ini seharusnya punya unrealized gain...');
-        $this->assertMoneyEquals('5425000.00', $is['net_profit'], '...yang tetap tidak mengubah laba.');
+        $this->assertMoneyEquals('5405000.00', $is['net_profit'], '...yang tetap tidak mengubah laba.');
     }
 
     /**
      * Fee pembelian dikapitalisasi, jadi tidak boleh muncul sebagai beban.
+     *
+     * Januari berisi top up dan satu pembelian. Beban satu-satunya adalah bea
+     * materai — pungutan atas konfirmasi harian, bukan biaya perolehan saham —
+     * sedangkan fee pembeliannya sendiri masuk book cost.
      */
     public function testPurchaseFeeNeverAppearsAsExpense(): void
     {
@@ -155,10 +161,19 @@ final class ReportingTest extends EngineTestCase
 
         $is = service('financialStatements')->incomeStatement('2026-01-01', '2026-01-31');
 
-        // Januari hanya berisi top up dan pembelian: tidak ada pendapatan
-        // maupun beban sama sekali.
         $this->assertMoneyEquals('0.00', $is['total_revenue']);
-        $this->assertMoneyEquals('0.00', $is['total_expense']);
+
+        // Akun Biaya Broker harus benar-benar kosong: fee Rp20.000 pada
+        // pembelian Januari dikapitalisasi, bukan dibebankan.
+        $expenseByCode = [];
+
+        foreach ($is['expenses'] as $row) {
+            $expenseByCode[$row['code']] = $row['amount'];
+        }
+
+        $this->assertArrayNotHasKey('5000', $expenseByCode, 'Fee pembelian tidak boleh menjadi beban.');
+        $this->assertMoneyEquals('10000.00', $is['total_expense'], 'Hanya bea materai.');
+        $this->assertMoneyEquals('10000.00', $expenseByCode['5200']);
     }
 
     // ------------------------------------------------------------ Arus Kas
@@ -173,7 +188,7 @@ final class ReportingTest extends EngineTestCase
         $cf = service('financialStatements')->cashFlow('2026-01-01', '2026-12-31');
 
         $this->assertMoneyEquals('0.00', $cf['beginning']);
-        $this->assertMoneyEquals('105415000.00', $cf['ending']);
+        $this->assertMoneyEquals('105395000.00', $cf['ending']);
         $this->assertTrue(
             $cf['beginning']->add($cf['net_change'])->equals($cf['ending']),
             'Saldo awal + perubahan harus sama dengan saldo akhir.'
@@ -190,8 +205,8 @@ final class ReportingTest extends EngineTestCase
         $this->assertMoneyEquals('140000000.00', $cf['sections']['financing']['total']);
         // Investasi: -80.020.000 beli + 44.985.000 jual
         $this->assertMoneyEquals('-35035000.00', $cf['sections']['investing']['total']);
-        // Operasi: dividen netto 450.000
-        $this->assertMoneyEquals('450000.00', $cf['sections']['operating']['total']);
+        // Operasi: dividen netto 450.000 dikurangi bea materai 2 x 10.000
+        $this->assertMoneyEquals('430000.00', $cf['sections']['operating']['total']);
     }
 
     /**

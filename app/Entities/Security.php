@@ -22,6 +22,19 @@ class Security extends Entity
         'is_active' => 'boolean',
     ];
 
+    /**
+     * Tarif all-in sisi beli dan jual, dalam persen.
+     */
+    public function buyFeePercent(): float
+    {
+        return (float) ($this->attributes['buy_fee_percent'] ?? 0);
+    }
+
+    public function sellFeePercent(): float
+    {
+        return (float) ($this->attributes['sell_fee_percent'] ?? 0);
+    }
+
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
     public function displayName(): string

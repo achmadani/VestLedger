@@ -14,6 +14,45 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+## [0.9.0] — 2026-08-19
+
+### Diperbaiki
+- **Tombol keluar menghasilkan 404.** Shield hanya mendaftarkan logout sebagai
+  GET, sedangkan navbar mengirim POST ber-CSRF. Rute POST ditambahkan; rute GET
+  bawaan dibiarkan. Logout tetap lewat POST karena logout lewat GET dapat
+  dipicu pihak lain hanya dengan menyisipkan `<img src=".../logout">`.
+- **Mengubah master data selalu ditolak sebagai duplikat.** Aturan
+  `is_unique[...,id,{id}]` mengganti `{id}` dari data yang divalidasi, bukan
+  dari id yang dikirim ke `update()`. Menyimpan ulang sekuritas, saham, atau
+  akun tanpa mengubah kodenya gagal dengan "kode sudah dipakai" — sejak Phase 2,
+  dan tidak ada satu pun test yang menangkapnya.
+- **Komponen UI mewarisi variabel halaman induknya.** `component()` meneruskan
+  seluruh data view yang sedang aktif, sehingga prop opsional diam-diam terisi
+  variabel bernama sama dari halaman lain. Komponen kini dirender dengan
+  instance View tersendiri.
+- Kolom tanggal baru pada master saham belum terdaftar di entity, sehingga
+  tetap berupa string dan `->format()` gagal.
+
+### Ditambahkan
+- **Tarif biaya per sekuritas** (beli 0,15%, jual 0,25% sebagai bawaan). Tarif
+  all-in dipecah menjadi fee broker, PPh final 0,1% (jual saja), dan levy bursa
+  0,043%, karena ketiganya masuk akun berbeda. Form beli/jual mengisinya
+  otomatis dan tetap dapat diubah manual.
+- **Bea materai Rp10.000** per sekuritas per hari saat total nilai transaksi
+  melebihi Rp10 juta, mengikuti Trade Confirmation harian. Perhitungannya
+  menyesuaikan diri terhadap transaksi backdate maupun pembatalan.
+- **Impor master saham** dari CSV data IDX: 964 emiten lengkap dengan sektor,
+  subsektor, industri, subindustri, indeks, papan pencatatan, tanggal listing,
+  jumlah saham, dan kapitalisasi pasar. Tersedia lewat CLI dan unggah web.
+- **Pencarian saham ketik-cari** pada form beli/jual, menggantikan dropdown
+  yang tidak lagi dapat dipakai dengan hampir seribu emiten. Pencarian
+  dilakukan di server; daftar emiten tidak dikirim ke browser.
+- **Urutan rekening sekuritas menurut frekuensi pemakaian**, yang paling sering
+  dipakai di atas.
+- **Login dengan akun Google** (OAuth 2.0 authorization code flow, tanpa
+  dependency tambahan). Hanya berhasil untuk alamat email yang sudah terdaftar
+  sebagai pengguna; pembuatan akun otomatis dimatikan.
+
 ## [0.8.0] — 2026-08-18 — Phase 9: Security Review, Performance, dan Deployment
 
 ### Ditambahkan

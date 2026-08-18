@@ -154,3 +154,8 @@ _tmp*
 # di-commit ia akan selalu menunjuk commit sebelumnya. Di server, berkas ini
 # dibuat setelah `git pull` sehingga menunjuk commit yang benar-benar ter-deploy.
 /writable/build.json
+
+# Berkas sumber IDX (XLSX) tidak di-commit: ukurannya besar dan diganti setiap
+# kali ada pembaruan. Yang dipakai aplikasi adalah hasil konversinya,
+# app/Database/Seeds/data/idx-stocks.csv, yang ikut di-commit.
+/docs/*.xlsx

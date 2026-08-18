@@ -148,12 +148,10 @@ final class ReversalTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 5_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 5_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $purchase = (new StockTransactionModel())->where('type', 'buy')->first();
 
@@ -172,12 +170,10 @@ final class ReversalTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 5_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 5_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $stocks = new StockTransactionModel();
 
@@ -231,12 +227,10 @@ final class ReversalTest extends EngineTestCase
         $this->fund($this->ajaib);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-05', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
         service('stockTransactions')->buy([
             'transaction_date' => '2026-01-06', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 2_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $latest = (new StockTransactionModel())->orderBy('id', 'desc')->first();
         service('reversals')->reverseStock($latest->id);

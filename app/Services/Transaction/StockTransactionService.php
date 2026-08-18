@@ -11,6 +11,7 @@ use App\Enums\SourceType;
 use App\Enums\StockTransactionType;
 use App\Exceptions\BusinessRuleException;
 use App\Models\SecuritiesAccountModel;
+use App\Models\SecurityModel;
 use App\Models\StockModel;
 use App\Models\StockTransactionModel;
 use App\Services\Accounting\AuditLogger;
@@ -32,11 +33,14 @@ class StockTransactionService
     public function __construct(
         private StockTransactionModel $transactions,
         private SecuritiesAccountModel $accounts,
+        private SecurityModel $securities,
         private StockModel $stocks,
+        private TradingFeeCalculator $fees,
         private PositionService $positions,
         private JournalPoster $poster,
         private DocumentNumberService $numbers,
         private AuditLogger $audit,
+        private StampDutyService $stampDuty,
     ) {
     }
 
@@ -249,9 +253,27 @@ class StockTransactionService
             throw new BusinessRuleException(sprintf('Saham %s berstatus nonaktif.', $stock->ticker));
         }
 
-        $brokerFee = $this->charge($input['broker_fee'] ?? 0, 'Broker fee');
-        $tax       = $this->charge($input['tax'] ?? 0, 'Pajak');
-        $levy      = $this->charge($input['levy'] ?? 0, 'Levy');
+        $gross = $price->multiplyByQuantity($quantity);
+
+        // Biaya dihitung dari tarif sekuritas HANYA bila pemanggil tidak
+        // menyebutkannya sama sekali. Bila field-nya dikirim — termasuk saat
+        // dikosongkan pengguna — nilai itulah yang dipakai, karena pengguna
+        // berhak mengoreksi biaya agar cocok dengan konfirmasi brokernya.
+        $providesCharges = array_key_exists('broker_fee', $input)
+            || array_key_exists('tax', $input)
+            || array_key_exists('levy', $input);
+
+        if ($providesCharges) {
+            $brokerFee = $this->charge($input['broker_fee'] ?? 0, 'Broker fee');
+            $tax       = $this->charge($input['tax'] ?? 0, 'Pajak');
+            $levy      = $this->charge($input['levy'] ?? 0, 'Levy');
+        } else {
+            $security  = $this->securities->find($account->securities_id);
+            $computed  = $this->fees->calculate($security, $type, $gross);
+            $brokerFee = $computed['broker_fee'];
+            $tax       = $computed['tax'];
+            $levy      = $computed['levy'];
+        }
 
         return [
             'date'      => $date,
@@ -261,7 +283,7 @@ class StockTransactionService
             'ticker'    => $stock->ticker,
             'quantity'  => $quantity,
             'price'     => $price,
-            'gross'     => $price->multiplyByQuantity($quantity),
+            'gross'     => $gross,
             'brokerFee' => $brokerFee,
             'tax'       => $tax,
             'levy'      => $levy,
@@ -319,6 +341,10 @@ class StockTransactionService
         $entry = $this->poster->post($draft, auth()->id());
 
         $this->transactions->update($id, ['journal_entry_id' => $entry->id]);
+
+        // Bea materai dihitung ulang untuk hari itu setelah transaksi tercatat,
+        // sehingga transaksi yang dimasukkan mundur pun ikut diperhitungkan.
+        $this->stampDuty->syncFor($context['accountId'], $context['date']);
 
         $this->audit->record(
             'created',

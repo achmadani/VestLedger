@@ -62,12 +62,7 @@ class Securities extends BaseController
     {
         try {
             $security = service('securityService')->create(
-                [
-                    'code'      => (string) $this->request->getPost('code'),
-                    'name'      => (string) $this->request->getPost('name'),
-                    'notes'     => $this->request->getPost('notes') ?: null,
-                    'is_active' => $this->request->getPost('is_active') !== null ? 1 : 0,
-                ],
+                $this->payload(),
                 [
                     'label'          => (string) ($this->request->getPost('account_label') ?: 'RDN Utama'),
                     'account_number' => $this->request->getPost('account_number') ?: null,
@@ -114,17 +109,29 @@ class Securities extends BaseController
     public function update(int $id): RedirectResponse
     {
         try {
-            service('securityService')->update($id, [
-                'code'      => (string) $this->request->getPost('code'),
-                'name'      => (string) $this->request->getPost('name'),
-                'notes'     => $this->request->getPost('notes') ?: null,
-                'is_active' => $this->request->getPost('is_active') !== null ? 1 : 0,
-            ]);
+            service('securityService')->update($id, $this->payload());
         } catch (BusinessRuleException $e) {
             return $this->redirectWithRuleError($e, '/master/securities/' . $id . '/edit');
         }
 
         return redirect()->to('/master/securities/' . $id)->with('success', 'Sekuritas berhasil diperbarui.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payload(): array
+    {
+        $config = config(\Config\Investment::class);
+
+        return [
+            'code'             => (string) $this->request->getPost('code'),
+            'name'             => (string) $this->request->getPost('name'),
+            'buy_fee_percent'  => $this->request->getPost('buy_fee_percent') ?: $config->defaultBuyFeePercent,
+            'sell_fee_percent' => $this->request->getPost('sell_fee_percent') ?: $config->defaultSellFeePercent,
+            'notes'            => $this->request->getPost('notes') ?: null,
+            'is_active'        => $this->request->getPost('is_active') !== null ? 1 : 0,
+        ];
     }
 
     public function delete(int $id): RedirectResponse

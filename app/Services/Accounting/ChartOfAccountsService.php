@@ -82,6 +82,9 @@ class ChartOfAccountsService
 
         $this->guardParent($data['parent_id'] ?? null, $id);
 
+        // Lihat catatan yang sama di SecurityService::update().
+        $data['id'] = $id;
+
         if ($this->accounts->update($id, $data) === false) {
             throw new BusinessRuleException(
                 'Perubahan gagal disimpan.',

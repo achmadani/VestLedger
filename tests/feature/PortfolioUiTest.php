@@ -53,8 +53,7 @@ final class PortfolioUiTest extends CIUnitTestCase
         ]);
         service('stockTransactions')->buy([
             'transaction_date' => date('Y') . '-01-05', 'securities_account_id' => $this->accountId,
-            'stock_id' => $this->stockId, 'quantity' => 10_000, 'price' => 8_000,
-        ]);
+            'stock_id' => $this->stockId, 'quantity' => 10_000, 'price' => 8_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
     }
 
     private function makeUser(string $group): User
@@ -165,7 +164,8 @@ final class PortfolioUiTest extends CIUnitTestCase
         $result->assertOK();
         $result->assertSee('Top Holdings');
         $result->assertSee('BBCA');
-        // Kas 20.000.000 dan market value 90.000.000 -> net worth 110.000.000
-        $result->assertSee('110.000.000');
+        // Kas 100jt - beli 80jt - materai 10.000 = 19.990.000,
+        // ditambah market value 90.000.000 -> net worth 109.990.000
+        $result->assertSee('109.990.000');
     }
 }

@@ -35,6 +35,15 @@
   }
 }
 
+/*
+ | Input yang menampilkan isinya dalam huruf besar (mis. kode saham) tidak
+ | seharusnya ikut menghurufbesarkan placeholder-nya — teks petunjuk yang
+ | seluruhnya kapital terbaca seperti bentakan.
+ */
+.uppercase::placeholder {
+  text-transform: none;
+}
+
 /* Sembunyikan konten sampai Alpine siap, mencegah flash of unstyled content */
 [x-cloak] {
   display: none !important;

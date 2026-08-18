@@ -106,8 +106,7 @@ final class OpeningBalanceTest extends EngineTestCase
 
         $sale = service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 1_000, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         // Book value dilepas = 16.400.000 x 1.000/2.000
         $this->assertMoneyEquals('8200000.00', $sale->bookValueSold());
@@ -206,8 +205,7 @@ final class OpeningBalanceTest extends EngineTestCase
 
         service('stockTransactions')->sell([
             'transaction_date' => '2026-02-10', 'securities_account_id' => $this->ajaib,
-            'stock_id' => $this->bbca, 'quantity' => 500, 'price' => 9_000,
-        ]);
+            'stock_id' => $this->bbca, 'quantity' => 500, 'price' => 9_000, 'broker_fee' => 0, 'tax' => 0, 'levy' => 0]);
 
         $this->expectException(BusinessRuleException::class);
         $this->expectExceptionMessageMatches('/sudah ada transaksi/');

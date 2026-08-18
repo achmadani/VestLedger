@@ -14,11 +14,16 @@ class SecurityModel extends Model
     protected $returnType       = Security::class;
     protected $useSoftDeletes   = true;
     protected $useTimestamps    = true;
-    protected $allowedFields    = ['code', 'name', 'notes', 'is_active'];
+    protected $allowedFields    = ['code', 'name', 'buy_fee_percent', 'sell_fee_percent', 'notes', 'is_active'];
     protected $validationRules  = [
+        // CodeIgniter mensyaratkan placeholder {id} memiliki aturannya sendiri.
+        // Tanpa baris ini, is_unique[...,id,{id}] melempar LogicException.
+        'id' => 'permit_empty|is_natural_no_zero',
         'code'      => 'required|max_length[20]|alpha_numeric_punct|is_unique[securities.code,id,{id}]',
         'name'      => 'required|max_length[100]',
         'notes'     => 'permit_empty|max_length[2000]',
+        'buy_fee_percent'  => 'permit_empty|decimal|greater_than_equal_to[0]|less_than[100]',
+        'sell_fee_percent' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than[100]',
         'is_active' => 'permit_empty|in_list[0,1]',
     ];
     protected $validationMessages = [

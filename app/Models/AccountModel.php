@@ -21,6 +21,9 @@ class AccountModel extends Model
         'is_postable', 'is_system', 'description', 'is_active',
     ];
     protected $validationRules = [
+        // CodeIgniter mensyaratkan placeholder {id} memiliki aturannya sendiri.
+        // Tanpa baris ini, is_unique[...,id,{id}] melempar LogicException.
+        'id' => 'permit_empty|is_natural_no_zero',
         'code'           => 'required|max_length[20]|alpha_numeric_punct|is_unique[accounts.code,id,{id}]',
         'name'           => 'required|max_length[120]',
         'type'           => 'required|in_list[asset,liability,equity,revenue,expense]',

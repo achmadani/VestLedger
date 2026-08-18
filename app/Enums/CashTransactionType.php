@@ -13,6 +13,7 @@ enum CashTransactionType: string
     case Withdrawal = 'withdrawal';
     case Transfer   = 'transfer';
     case AdminFee   = 'admin_fee';
+    case StampDuty  = 'stamp_duty';
 
     public function label(): string
     {
@@ -21,6 +22,7 @@ enum CashTransactionType: string
             self::Withdrawal => 'Withdrawal',
             self::Transfer   => 'Transfer Antar Sekuritas',
             self::AdminFee   => 'Biaya Administrasi',
+            self::StampDuty  => 'Bea Materai',
         };
     }
 
@@ -38,6 +40,17 @@ enum CashTransactionType: string
     public function increasesCash(): bool
     {
         return $this === self::TopUp;
+    }
+
+    /**
+     * Jenis yang dibuat sistem sendiri, bukan diinput pengguna.
+     *
+     * Bea materai lahir otomatis dari total transaksi harian, sehingga tidak
+     * boleh muncul sebagai pilihan di form maupun dibuat manual.
+     */
+    public function isSystemGenerated(): bool
+    {
+        return $this === self::StampDuty;
     }
 
     /**

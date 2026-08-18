@@ -68,6 +68,40 @@ final class MasterDataTest extends CIUnitTestCase
         $this->assertSame('RDN Utama', $accounts[0]->label);
     }
 
+    /**
+     * Menyimpan ulang tanpa mengubah kode tidak boleh ditolak sebagai duplikat
+     * terhadap dirinya sendiri.
+     *
+     * Aturan is_unique[...,id,{id}] mengganti {id} dari DATA yang divalidasi,
+     * bukan dari id yang dikirim ke update(). Selama beberapa phase, mengubah
+     * nama sekuritas lewat form selalu gagal dengan pesan "kode sudah dipakai" —
+     * dan tidak ada satu pun test yang menangkapnya.
+     */
+    public function testEditingMasterRecordWithoutChangingItsUniqueFieldSucceeds(): void
+    {
+        $security = service('securityService')->create(['code' => 'AJAIB', 'name' => 'Ajaib']);
+        $updated  = service('securityService')->update($security->id, [
+            'code' => 'AJAIB',
+            'name' => 'Ajaib Sekuritas Asia',
+        ]);
+        $this->assertSame('Ajaib Sekuritas Asia', $updated->name);
+
+        $stock        = service('stockService')->create(['ticker' => 'BBCA', 'company_name' => 'BCA']);
+        $updatedStock = service('stockService')->update($stock->id, [
+            'ticker'       => 'BBCA',
+            'company_name' => 'Bank Central Asia Tbk',
+        ]);
+        $this->assertSame('Bank Central Asia Tbk', $updatedStock->company_name);
+
+        service('chartOfAccounts')->ensureSystemAccounts();
+        $account = (new \App\Models\AccountModel())->findByCode('5100');
+        $updatedAccount = service('chartOfAccounts')->update($account->id, [
+            'code' => '5100',
+            'name' => 'Beban Administrasi & Langganan',
+        ]);
+        $this->assertSame('Beban Administrasi & Langganan', $updatedAccount->name);
+    }
+
     public function testDuplicateSecuritiesCodeIsRejectedRegardlessOfCase(): void
     {
         service('securityService')->create(['code' => 'IPOT', 'name' => 'Indo Premier']);

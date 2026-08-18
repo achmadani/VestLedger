@@ -36,6 +36,28 @@ $action = $isEdit ? site_url('master/securities/' . $security->id) : site_url('m
             'required' => true,
             'class'    => 'mt-3',
         ])
+        . '<div class="grid gap-3 sm:grid-cols-2 mt-3">'
+        . component('form/input', [
+            'name'  => 'buy_fee_percent',
+            'label' => 'Fee Beli (%)',
+            'type'  => 'number',
+            'value' => old('buy_fee_percent', $isEdit ? rtrim(rtrim((string) $security->buy_fee_percent, '0'), '.') : '0.15'),
+            'help'  => 'Tarif all-in, sudah termasuk levy bursa.',
+            'attrs' => ['step' => '0.00001', 'min' => '0', 'class' => 'input input-bordered w-full num'],
+        ])
+        . component('form/input', [
+            'name'  => 'sell_fee_percent',
+            'label' => 'Fee Jual (%)',
+            'type'  => 'number',
+            'value' => old('sell_fee_percent', $isEdit ? rtrim(rtrim((string) $security->sell_fee_percent, '0'), '.') : '0.25'),
+            'help'  => 'Tarif all-in, sudah termasuk PPh final dan levy.',
+            'attrs' => ['step' => '0.00001', 'min' => '0', 'class' => 'input input-bordered w-full num'],
+        ])
+        . '</div>'
+        . '<p class="text-xs text-base-content/60 mt-2">Sistem memecah tarif all-in ini menjadi fee broker, '
+        . 'PPh final ' . fmt_number(config(\Config\Investment::class)->sellTaxPercent, 2) . '% (hanya sisi jual), '
+        . 'dan levy bursa ' . fmt_number(config(\Config\Investment::class)->exchangeLevyPercent, 3) . '%, '
+        . 'karena ketiganya masuk akun yang berbeda. Jumlahnya tetap persis sama dengan tarif di atas.</p>'
         . component('form/textarea', [
             'name'  => 'notes',
             'label' => 'Catatan',

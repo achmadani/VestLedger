@@ -45,7 +45,12 @@ class StockService
             throw new BusinessRuleException('Saham tidak ditemukan.');
         }
 
-        if ($this->stocks->update($id, $this->normalise($data)) === false) {
+        $data = $this->normalise($data);
+
+        // Lihat catatan yang sama di SecurityService::update().
+        $data['id'] = $id;
+
+        if ($this->stocks->update($id, $data) === false) {
             throw new BusinessRuleException(
                 'Perubahan gagal disimpan.',
                 array_values($this->stocks->errors())
