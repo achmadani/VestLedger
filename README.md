@@ -14,7 +14,7 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 | Phase | Lingkup | Status |
 |---|---|---|
 | 1 | Foundation — CI4, autentikasi, design system, tema | ✅ Selesai |
-| 2 | Master Data — sekuritas, saham, CoA, periode akuntansi | ⬜ |
+| 2 | Master Data — sekuritas, saham, CoA, periode akuntansi | ✅ Selesai |
 | 3 | Transaction Engine — top up, withdrawal, transfer, beli, jual, dividen, fee | ⬜ |
 | 4 | Accounting Engine — jurnal, buku besar, reversal, audit trail | ⬜ |
 | 5 | Portfolio Engine — posisi, average cost, realized & unrealized G/L | ⬜ |
@@ -79,7 +79,15 @@ make setup
 ```
 
 Perintah itu menjalankan `composer install`, `npm install`, build aset, dan
-migrasi database. Setelah itu:
+migrasi database. Lalu isi master data awal:
+
+```bash
+make seed
+```
+
+`make seed` membuat Chart of Accounts inti, 5 sekuritas, 4 saham contoh, dan 12
+periode akuntansi untuk tahun berjalan. Seluruhnya idempoten — aman dijalankan
+berulang kali. Setelah itu:
 
 ```bash
 make serve
@@ -106,10 +114,17 @@ sudah menambahkan group `owner` (akses penuh). Group lain yang tersedia:
 ```bash
 make dev        # Tailwind watch mode selama mengembangkan UI
 make build      # build ulang CSS + salin Alpine.js ke public/assets
+make seed       # isi master data awal (idempoten)
 make test       # jalankan seluruh test
 make migrate    # jalankan migrasi database
 make fresh      # rollback seluruh migrasi lalu migrasi ulang (HATI-HATI: menghapus data)
 ```
+
+> ⚠️ **Class Tailwind baru butuh build ulang.** Utility yang belum pernah dipakai
+> di `app/Views` tidak ada di bundle CSS sampai `make build` dijalankan — dan
+> gejalanya menyesatkan: layout tampak "rusak" padahal markup-nya benar.
+> `make serve` sudah otomatis build lebih dulu; gunakan `make dev` saat aktif
+> mengubah tampilan.
 
 ---
 
@@ -123,7 +138,7 @@ Test memakai database terpisah `vestledger_test` (dikonfigurasi di `.env` pada
 grup `database.tests`) dan menjalankan migrasi sendiri, jadi data development
 tidak tersentuh.
 
-Cakupan test Phase 1:
+Cakupan test:
 
 - **`tests/unit/FormatHelperTest.php`** — format uang/kuantitas gaya Indonesia,
   konversi lot↔lembar (`100 lot = 10.000 lembar`), penanda arah gain/loss.
@@ -133,6 +148,18 @@ Cakupan test Phase 1:
 - **`tests/feature/DashboardTest.php`** — otorisasi per group, sidebar
   menyembunyikan menu yang tidak diizinkan, menu yang belum dibangun tidak
   dirender sebagai link, layout merujuk aset hasil build.
+- **`tests/unit/AccountEnumsTest.php`** — saldo normal tiap tipe akun, akun
+  kontra 3200, akun mana yang membawa dimensi sekuritas/saham.
+- **`tests/database/ChartOfAccountsTest.php`** — perlindungan akun inti (tidak
+  bisa dihapus, diubah kode/tipenya, atau dinonaktifkan), penjagaan siklus
+  induk-anak, idempotensi seeder.
+- **`tests/database/AccountingPeriodTest.php`** — batas tanggal periode termasuk
+  tahun kabisat, urutan tutup/buka periode, penolakan posting ke periode tertutup.
+- **`tests/database/MasterDataTest.php`** — sekuritas selalu punya rekening,
+  rollback saat rekening gagal, normalisasi kode/ticker, masking nomor rekening.
+- **`tests/feature/MasterDataAccessTest.php`** — otorisasi rute master data;
+  POST di test menyertakan token CSRF agar penolakan yang diuji benar-benar
+  berasal dari filter permission, bukan dari CSRF.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).
@@ -150,12 +177,20 @@ app/
 │   ├── Investment.php     # parameter domain: lot size, presisi angka, daftar tema
 │   ├── Navigation.php     # struktur menu sebagai data (bukan HTML)
 │   ├── Auth.php           # Shield: registrasi mati, redirect, view kustom
-│   └── AuthGroups.php     # group owner/accountant/viewer + matrix permission
+│   ├── AuthGroups.php     # group owner/accountant/viewer + matrix permission
+│   └── Services.php       # factory service layer
 ├── Controllers/
+├── Entities/              # Security, SecuritiesAccount, Stock, Account, AccountingPeriod
+├── Enums/                 # AccountType, BalanceSide, AccountCode, PeriodStatus
+├── Exceptions/            # BusinessRuleException
 ├── Helpers/
 │   ├── format_helper.php  # fmt_rupiah, fmt_signed, fmt_lot, amount_class, component()
 │   └── asset_helper.php   # asset_url() dengan cache-busting berbasis mtime
-├── Services/              # Accounting/ Portfolio/ Transaction/ Reporting/ (Phase 3+)
+├── Models/
+├── Services/
+│   ├── Accounting/        # ChartOfAccountsService, AccountingPeriodService
+│   ├── MasterData/        # SecurityService, StockService
+│   └── Portfolio/ Transaction/ Reporting/   (Phase 3+)
 └── Views/
     ├── layouts/           # app.php (terautentikasi), auth.php (tamu)
     ├── components/        # navbar, sidebar, card, stat, table, modal, pager, form/*

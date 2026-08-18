@@ -63,7 +63,7 @@ class Navigation extends BaseConfig
                     ['label' => 'Jurnal', 'route' => '/accounting/journal', 'permission' => 'report.view', 'enabled' => false, 'phase' => 'Phase 4'],
                     ['label' => 'Buku Besar', 'route' => '/accounting/ledger', 'permission' => 'report.view', 'enabled' => false, 'phase' => 'Phase 4'],
                     ['label' => 'Neraca Saldo', 'route' => '/accounting/trial-balance', 'permission' => 'report.view', 'enabled' => false, 'phase' => 'Phase 6'],
-                    ['label' => 'Periode Akuntansi', 'route' => '/accounting/periods', 'permission' => 'period.manage', 'enabled' => false, 'phase' => 'Phase 2'],
+                    ['label' => 'Periode Akuntansi', 'route' => '/accounting/periods', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Saldo Awal', 'route' => '/accounting/opening-balance', 'permission' => 'opening.manage', 'enabled' => false, 'phase' => 'Phase 8'],
                 ],
             ],
@@ -86,9 +86,9 @@ class Navigation extends BaseConfig
                 'label' => 'Master Data',
                 'icon'  => 'database',
                 'items' => [
-                    ['label' => 'Sekuritas', 'route' => '/master/securities', 'permission' => 'masterdata.view', 'enabled' => false, 'phase' => 'Phase 2'],
-                    ['label' => 'Saham', 'route' => '/master/stocks', 'permission' => 'masterdata.view', 'enabled' => false, 'phase' => 'Phase 2'],
-                    ['label' => 'Chart of Accounts', 'route' => '/master/accounts', 'permission' => 'masterdata.view', 'enabled' => false, 'phase' => 'Phase 2'],
+                    ['label' => 'Sekuritas', 'route' => '/master/securities', 'permission' => 'masterdata.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Saham', 'route' => '/master/stocks', 'permission' => 'masterdata.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Chart of Accounts', 'route' => '/master/accounts', 'permission' => 'masterdata.view', 'enabled' => true, 'phase' => null],
                 ],
             ],
             [

@@ -56,6 +56,13 @@ dan pada penjualan **seluruh** posisi, `book_value_sold` = seluruh sisa
 | 5100 | Administrative Expense | Expense | |
 | 5200 | Tax / Levy | Expense | Pajak & levy sisi jual serta pajak dividen |
 
+Akun-akun di atas ditandai `is_system` di database dan didefinisikan sebagai
+`App\Enums\AccountCode`. Service akuntansi **tidak pernah** menulis kode akun
+sebagai string literal — semuanya lewat enum tersebut, sehingga salah ketik kode
+menjadi error PHP, bukan jurnal yang diam-diam salah. Akun bertanda `is_system`
+tidak dapat dihapus, dinonaktifkan, maupun diubah kode/tipe/saldo normalnya;
+namanya masih boleh disesuaikan.
+
 Kas **tidak** dipecah menjadi akun terpisah per sekuritas. Sebagai gantinya setiap
 baris jurnal membawa dimensi `securities_account_id` (dan `stock_id` bila relevan),
 sehingga buku besar bisa difilter per sekuritas dan per ticker (§21.5) tanpa
@@ -142,6 +149,21 @@ Isinya hanya fee jual dan biaya administrasi.
 Transfer antar sekuritas hanya memindahkan dimensi `securities_account_id` pada
 akun yang sama, sehingga **total kas global tidak berubah** dan tidak ada
 revenue/expense yang tersentuh (§40.5).
+
+## Periode akuntansi
+
+Setiap transaksi harus jatuh pada periode yang berstatus `open`. Dua aturan
+urutan dijaga sistem agar buku tidak berlubang:
+
+1. Sebuah periode hanya dapat **ditutup** bila semua periode sebelumnya sudah
+   tertutup — tanpa ini, laba periode dihitung di atas periode yang isinya masih
+   dapat berubah.
+2. Hanya periode tertutup **paling akhir** yang dapat dibuka kembali — membuka
+   periode lama akan mengubah saldo awal periode-periode sesudahnya yang sudah
+   dinyatakan final.
+
+Transaksi bertanggal pada periode tertutup ditolak. Koreksinya lewat jurnal
+reversal di periode terbuka, bukan dengan mengubah data lama (§26, §40.8).
 
 ## Yang tidak dijurnal
 
