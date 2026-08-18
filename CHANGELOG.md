@@ -14,6 +14,28 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+## [0.6.0] — 2026-08-18 — Phase 6: Reporting
+
+### Ditambahkan
+- Neraca, Laba Rugi, Arus Kas (metode langsung), dan Neraca Saldo.
+- Laporan bulanan dengan perbandingan terhadap bulan sebelumnya, dan laporan
+  tahunan dengan rincian per bulan.
+- Laporan Realized Gain/Loss, Unrealized Gain/Loss, Dividen, dan Broker Fee.
+- Tombol cetak pada setiap laporan.
+
+### Diperbaiki
+- **Laporan per tanggal lampau memakai posisi hari ini.** `portfolio?as_of=...`
+  menilai posisi terkini dengan harga tanggal lampau — angka yang tidak pernah
+  ada. Posisi historis kini diturunkan dari buku besar (dimensi akun 1100) dan
+  dari transaksi.
+- **Query arus kas menggandakan nilai.** `JOIN` ke baris lawan menggandakan
+  baris kas sebanyak jumlah baris lawan pada jurnal yang sama, sehingga nilainya
+  ikut terkali. Tidak terlihat pada jurnal dua baris, dan baru muncul pada
+  jurnal penjualan yang berbaris banyak. Agregasi kini dilakukan di subquery.
+- Test dashboard yang menjadi usang karena menu Neraca kini aktif; test kini
+  menunjuk menu yang memang belum dibangun, dan nama pengguna di test dibuat
+  unik agar tidak bentrok antar-run.
+
 ## [0.5.2] — 2026-08-18
 
 ### Diperbaiki

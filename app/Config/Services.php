@@ -15,6 +15,7 @@ use App\Models\SecurityModel;
 use App\Models\StockModel;
 use App\Models\StockPositionModel;
 use App\Models\StockTransactionModel;
+use App\Repositories\PositionSnapshotRepository;
 use App\Services\Accounting\AccountingPeriodService;
 use App\Services\Accounting\AuditLogger;
 use App\Services\Accounting\ChartOfAccountsService;
@@ -25,6 +26,9 @@ use App\Services\MasterData\StockService;
 use App\Services\Portfolio\MarketPriceService;
 use App\Services\Portfolio\PortfolioService;
 use App\Services\Portfolio\PositionService;
+use App\Services\Reporting\FinancialStatementService;
+use App\Services\Reporting\InvestmentReportService;
+use App\Services\Reporting\PeriodicReportService;
 use App\Services\Transaction\CashTransactionService;
 use App\Services\Transaction\DividendTransactionService;
 use App\Services\Transaction\ReversalService;
@@ -143,7 +147,35 @@ class Services extends BaseService
             new JournalLineModel(),
             new AccountModel(),
             new SecuritiesAccountModel(),
+            new PositionSnapshotRepository(new AccountModel()),
         );
+    }
+
+    public static function financialStatements(bool $getShared = true): FinancialStatementService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('financialStatements');
+        }
+
+        return new FinancialStatementService(new JournalLineModel(), new AccountModel());
+    }
+
+    public static function periodicReports(bool $getShared = true): PeriodicReportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('periodicReports');
+        }
+
+        return new PeriodicReportService(static::portfolio(), new AccountModel());
+    }
+
+    public static function investmentReports(bool $getShared = true): InvestmentReportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('investmentReports');
+        }
+
+        return new InvestmentReportService();
     }
 
     public static function cashTransactions(bool $getShared = true): CashTransactionService

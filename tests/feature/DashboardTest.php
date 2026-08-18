@@ -35,8 +35,10 @@ final class DashboardTest extends CIUnitTestCase
         $users = new UserModel();
 
         $user = new User([
-            'username' => $username,
-            'email'    => $username . '@vestledger.test',
+            // Tabel users tidak ikut dikosongkan antar test, jadi nama harus unik
+            // agar test tidak gagal karena sisa run sebelumnya.
+            'username' => $username . '_' . bin2hex(random_bytes(3)),
+            'email'    => bin2hex(random_bytes(5)) . '@vestledger.test',
             'password' => 'kata-sandi-uji-yang-panjang',
         ]);
 
@@ -63,8 +65,8 @@ final class DashboardTest extends CIUnitTestCase
     {
         $users = new UserModel();
         $user  = new User([
-            'username' => 'default_group_user',
-            'email'    => 'default_group_user@vestledger.test',
+            'username' => 'default_group_' . bin2hex(random_bytes(3)),
+            'email'    => bin2hex(random_bytes(5)) . '@vestledger.test',
             'password' => 'kata-sandi-uji-yang-panjang',
         ]);
         $users->save($user);
@@ -116,14 +118,35 @@ final class DashboardTest extends CIUnitTestCase
 
     /**
      * Menu yang belum dibangun tidak boleh menjadi link aktif (mencegah 404).
+     *
+     * Menu rujukan di sini harus selalu menunjuk phase yang BELUM selesai.
+     * Sebelumnya test ini memakai Neraca, dan menjadi usang begitu Phase 6
+     * mengaktifkannya — Saldo Awal (Phase 8) menggantikannya.
      */
     public function testUnbuiltMenuItemsAreNotRenderedAsLinks(): void
     {
         $result = $this->actingAs($this->makeUser('owner_nav', 'owner'))->get('dashboard');
 
         $result->assertOK();
-        $result->assertSee('Neraca');
-        $result->assertDontSee('/reports/balance-sheet');
+        $result->assertSee('Saldo Awal');
+        $result->assertDontSee('/accounting/opening-balance');
+    }
+
+    /**
+     * Menu phase yang SUDAH selesai harus benar-benar menjadi link.
+     */
+    public function testCompletedMenuItemsAreRenderedAsLinks(): void
+    {
+        $result = $this->actingAs($this->makeUser('owner_links', 'owner'))->get('dashboard');
+
+        $result->assertOK();
+
+        foreach ([
+            'master/securities', 'transactions', 'accounting/journal',
+            'portfolio', 'reports/balance-sheet', 'reports/yearly',
+        ] as $path) {
+            $result->assertSee($path);
+        }
     }
 
     /**

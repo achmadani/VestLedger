@@ -187,6 +187,12 @@ Cakupan test:
   massal, dan otorisasi `price.manage`.
 - **`tests/unit/SecurityConfigTest.php`** — penjaga konfigurasi keamanan; lihat
   catatan di bawah.
+- **`tests/database/ReportingTest.php`** — neraca balance di berbagai tanggal,
+  laba rugi cocok dengan buku besar dan tidak memuat unrealized, arus kas
+  merekonsiliasi saldo awal ke saldo akhir, transfer internal tidak muncul di
+  arus kas, saldo akhir bulan menjadi saldo awal bulan berikutnya, dan total
+  tahunan sama dengan jumlah bulanannya.
+- **`tests/feature/ReportUiTest.php`** — seluruh halaman laporan.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).
@@ -216,6 +222,8 @@ app/
 ├── Models/
 ├── Repositories/          # TransactionHistoryRepository (UNION tiga tabel transaksi)
 ├── Services/
+│   ├── Reporting/         # FinancialStatementService, PeriodicReportService,
+│   │                      # InvestmentReportService
 │   ├── Accounting/        # JournalPoster, ChartOfAccountsService, AccountingPeriodService,
 │   │                      # DocumentNumberService, AuditLogger
 │   ├── MasterData/        # SecurityService, StockService

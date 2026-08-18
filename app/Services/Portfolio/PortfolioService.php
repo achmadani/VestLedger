@@ -10,6 +10,7 @@ use App\Models\JournalLineModel;
 use App\Models\MarketPriceModel;
 use App\Models\SecuritiesAccountModel;
 use App\Models\StockPositionModel;
+use App\Repositories\PositionSnapshotRepository;
 use App\ValueObjects\Money;
 use App\ValueObjects\Price;
 
@@ -37,6 +38,7 @@ class PortfolioService
         private JournalLineModel $lines,
         private AccountModel $accounts,
         private SecuritiesAccountModel $securitiesAccounts,
+        private PositionSnapshotRepository $snapshots,
     ) {
     }
 
@@ -50,7 +52,7 @@ class PortfolioService
         $asOf ??= date('Y-m-d');
 
         $priceMap  = $this->prices->latestPrices($asOf);
-        $positions = $this->buildPositions($priceMap);
+        $positions = $this->buildPositions($priceMap, $asOf);
         $cash      = $this->cashByAccount($asOf);
 
         return [
@@ -121,34 +123,39 @@ class PortfolioService
      *
      * @return list<array<string, mixed>>
      */
-    private function buildPositions(array $priceMap): array
+    private function buildPositions(array $priceMap, string $asOf): array
     {
         $rows = [];
 
-        foreach ($this->positions->held() as $position) {
-            $bookValue   = $position->bookValue();
-            $averageCost = $position->averageCost();
-            $priced      = isset($priceMap[$position->stock_id]);
+        // Posisi diturunkan dari buku besar pada tanggal laporan, BUKAN dibaca
+        // dari tabel stock_positions yang hanya menyimpan keadaan terkini.
+        // Tanpa ini, laporan per tanggal lampau akan menampilkan posisi hari ini
+        // yang dinilai dengan harga tanggal itu — angka yang tidak pernah ada.
+        foreach ($this->snapshots->asOf($asOf) as $position) {
+            $bookValue   = $position['book_value'];
+            $quantity    = $position['quantity'];
+            $averageCost = Price::averageOf($bookValue, $quantity);
+            $priced      = isset($priceMap[$position['stock_id']]);
 
-            $marketPrice = $priced ? Price::of($priceMap[$position->stock_id]['price']) : null;
-            $marketValue = $marketPrice?->multiplyByQuantity($position->quantity);
+            $marketPrice = $priced ? Price::of($priceMap[$position['stock_id']]['price']) : null;
+            $marketValue = $marketPrice?->multiplyByQuantity($quantity);
             $unrealized  = $marketValue?->subtract($bookValue);
 
             $rows[] = [
-                'securities_account_id' => $position->securities_account_id,
-                'securities_code'       => $position->securities_code ?? '',
-                'securities_name'       => $position->securities_name ?? '',
-                'account_label'         => $position->account_label ?? '',
-                'stock_id'              => $position->stock_id,
-                'ticker'                => $position->ticker ?? '',
-                'company_name'          => $position->company_name ?? '',
-                'sector'                => $position->sector ?? null,
-                'quantity'              => $position->quantity,
+                'securities_account_id' => $position['securities_account_id'],
+                'securities_code'       => $position['securities_code'],
+                'securities_name'       => $position['securities_name'],
+                'account_label'         => $position['account_label'],
+                'stock_id'              => $position['stock_id'],
+                'ticker'                => $position['ticker'],
+                'company_name'          => $position['company_name'],
+                'sector'                => $position['sector'],
+                'quantity'              => $quantity,
                 'book_value'            => $bookValue,
                 'average_cost'          => $averageCost,
                 'has_price'             => $priced,
                 'market_price'          => $marketPrice,
-                'price_date'            => $priced ? $priceMap[$position->stock_id]['date'] : null,
+                'price_date'            => $priced ? $priceMap[$position['stock_id']]['date'] : null,
                 'market_value'          => $marketValue,
                 'unrealized'            => $unrealized,
                 'return_pct'            => $this->returnPercent($bookValue, $unrealized),

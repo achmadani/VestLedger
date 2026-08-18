@@ -217,6 +217,28 @@ half-up, seluruhnya dalam aritmetika bilangan bulat.
 Lapisan terakhir penting: seandainya ada bug di kode aplikasi yang lolos seluruh
 validasi, database sendiri yang menolak baris jurnal yang cacat.
 
+## Penyajian laporan
+
+Seluruh laporan keuangan dihitung dari `journal_lines` — tidak satu pun angkanya
+berasal dari tabel transaksi atau tabel posisi. Dengan begitu laporan keuangan
+tidak mungkin bertentangan dengan buku besar.
+
+**Neraca.** Akun nominal belum ditutup ke laba ditahan, sehingga laba/rugi
+berjalan disajikan sebagai baris ekuitas tersendiri. Persamaan
+Aset = Kewajiban + Ekuitas karenanya selalu terpenuhi tanpa memerlukan jurnal
+penutup.
+
+**Arus Kas** memakai metode langsung. Setiap jurnal yang menyentuh akun kas
+diklasifikasikan menurut akun lawannya: menyentuh 1100 berarti investasi,
+menyentuh 3000/3200 berarti pendanaan, selainnya operasi. Transfer antar
+sekuritas tidak muncul sama sekali — kedua sisinya akun kas yang sama sehingga
+saling meniadakan, persis seperti seharusnya (§18).
+
+**Posisi historis.** Laporan per tanggal lampau memakai posisi PADA TANGGAL ITU,
+diturunkan dari dimensi akun 1100 di buku besar (nilai) dan dari transaksi
+(jumlah lembar). Tabel `stock_positions` hanya menyimpan keadaan terkini dan
+dipakai saat transaksi berjalan, bukan untuk pelaporan historis.
+
 ## Periode akuntansi
 
 Setiap transaksi harus jatuh pada periode yang berstatus `open`. Dua aturan

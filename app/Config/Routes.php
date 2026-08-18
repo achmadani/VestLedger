@@ -102,11 +102,25 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
         $routes->get('journal', 'Accounting\Journal::index', ['filter' => 'permission:report.view']);
         $routes->get('journal/(:num)', 'Accounting\Journal::show/$1', ['filter' => 'permission:report.view']);
         $routes->get('ledger', 'Accounting\Ledger::index', ['filter' => 'permission:report.view']);
+        $routes->get('trial-balance', 'Reports::trialBalance', ['filter' => 'permission:report.view']);
 
         $routes->get('periods', 'Accounting\Periods::index', ['filter' => 'permission:report.view']);
         $routes->post('periods/generate', 'Accounting\Periods::generate', ['filter' => 'permission:period.manage']);
         $routes->post('periods/(:num)/close', 'Accounting\Periods::close/$1', ['filter' => 'permission:period.manage']);
         $routes->post('periods/(:num)/reopen', 'Accounting\Periods::reopen/$1', ['filter' => 'permission:period.manage']);
+    });
+
+    // ---------------------------------------------------------------- Laporan
+    $routes->group('reports', ['filter' => 'permission:report.view'], static function (RouteCollection $routes): void {
+        $routes->get('balance-sheet', 'Reports::balanceSheet');
+        $routes->get('income-statement', 'Reports::incomeStatement');
+        $routes->get('cash-flow', 'Reports::cashFlow');
+        $routes->get('monthly', 'Reports::monthly');
+        $routes->get('yearly', 'Reports::yearly');
+        $routes->get('realized', 'Reports::realized');
+        $routes->get('unrealized', 'Reports::unrealized');
+        $routes->get('dividend', 'Reports::dividend');
+        $routes->get('broker-fee', 'Reports::brokerFee');
     });
 
     // ---------------------------------------------------------------- Sistem
