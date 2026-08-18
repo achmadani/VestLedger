@@ -15,9 +15,8 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 |---|---|---|
 | 1 | Foundation — CI4, autentikasi, design system, tema | ✅ Selesai |
 | 2 | Master Data — sekuritas, saham, CoA, periode akuntansi | ✅ Selesai |
-| 3 | Transaction Engine — top up, withdrawal, transfer, beli, jual, dividen, fee | ⬜ |
-| 4 | Accounting Engine — jurnal, buku besar, reversal, audit trail | ⬜ |
-| 5 | Portfolio Engine — posisi, average cost, realized & unrealized G/L | ⬜ |
+| 3+4 | Transaction & Accounting Engine — transaksi, jurnal, buku besar, reversal, audit trail, posisi & average cost | ✅ Selesai |
+| 5 | Portfolio Engine — harga pasar, unrealized G/L, tampilan portofolio | ⬜ |
 | 6 | Reporting — neraca, laba rugi, arus kas, trial balance, bulanan, tahunan | ⬜ |
 | 7 | Dashboard & UI — chart, filter, penyempurnaan responsive | ⬜ |
 | 8 | Opening Balance & Closing Period | ⬜ |
@@ -160,6 +159,23 @@ Cakupan test:
 - **`tests/feature/MasterDataAccessTest.php`** — otorisasi rute master data;
   POST di test menyertakan token CSRF agar penolakan yang diuji benar-benar
   berasal dari filter permission, bukan dari CSRF.
+- **`tests/unit/MoneyTest.php`** — aritmetika uang eksak, pembagian proporsional
+  book value, penjualan bertahap yang harus menghabiskan book value tanpa sisa.
+- **`tests/database/CashTransactionTest.php`** — top up bukan pendapatan,
+  withdrawal bukan beban, transfer tidak mengubah total kas global, penolakan
+  transaksi ke periode tertutup beserta rollback-nya.
+- **`tests/database/StockTransactionTest.php`** — contoh terhitung §12,
+  kapitalisasi biaya beli, realized gain & loss, jual habis tanpa sisa book value,
+  average cost terpisah per sekuritas, dan invariant **akun 1100 = total book
+  value seluruh posisi**.
+- **`tests/database/DividendAndJournalTest.php`** — dividen bruto vs pajak, dan
+  pengaman JournalPoster (tidak balance, satu baris, dimensi hilang, dipanggil di
+  luar database transaction).
+- **`tests/database/ReversalTest.php`** — pembalikan mengembalikan posisi dan
+  saldo, tidak menghapus apa pun, dan hanya transaksi terakhir pada satu posisi
+  yang boleh dibatalkan.
+- **`tests/feature/TransactionUiTest.php`** — alur beli→jual lewat HTTP, buku
+  besar tetap balance, dan otorisasi tiap rute transaksi.
 
 > **Catatan tentang test harness:** `FeatureTestTrait` CI4 memodifikasi body
 > respons (atribut `@click` Alpine dihilangkan dan `&` menjadi `&amp;`).
@@ -187,10 +203,15 @@ app/
 │   ├── format_helper.php  # fmt_rupiah, fmt_signed, fmt_lot, amount_class, component()
 │   └── asset_helper.php   # asset_url() dengan cache-busting berbasis mtime
 ├── Models/
+├── Repositories/          # TransactionHistoryRepository (UNION tiga tabel transaksi)
 ├── Services/
-│   ├── Accounting/        # ChartOfAccountsService, AccountingPeriodService
+│   ├── Accounting/        # JournalPoster, ChartOfAccountsService, AccountingPeriodService,
+│   │                      # DocumentNumberService, AuditLogger
 │   ├── MasterData/        # SecurityService, StockService
-│   └── Portfolio/ Transaction/ Reporting/   (Phase 3+)
+│   ├── Portfolio/         # PositionService (weighted average cost, rebuild)
+│   ├── Transaction/       # Cash/Stock/Dividend TransactionService, ReversalService
+│   └── Reporting/         # (Phase 6)
+├── ValueObjects/          # Money, Price, JournalDraft, JournalLineDraft
 └── Views/
     ├── layouts/           # app.php (terautentikasi), auth.php (tamu)
     ├── components/        # navbar, sidebar, card, stat, table, modal, pager, form/*

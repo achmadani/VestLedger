@@ -10,6 +10,7 @@ use App\Models\SecurityModel;
 use App\Models\StockModel;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\Concerns\TruncatesDomainTables;
 
 /**
  * Master sekuritas, rekening/RDN, dan saham (§4, §5).
@@ -19,6 +20,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 final class MasterDataTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
+    use TruncatesDomainTables;
 
     protected $migrate     = true;
     protected $migrateOnce = true;
@@ -33,11 +35,12 @@ final class MasterDataTest extends CIUnitTestCase
     {
         parent::setUp();
 
-        // Anak lebih dulu, karena securities_accounts memiliki FK RESTRICT ke securities.
-        $this->db->table('securities_accounts')->emptyTable();
-        $this->db->table('securities')->emptyTable();
-        $this->db->table('stocks')->emptyTable();
+        // Setiap test berangkat dari keadaan yang sama; lihat TruncatesDomainTables
+        // untuk alasan FK check dimatikan sementara.
+        $this->truncateDomainTables();
 
+        // Service di-share antar pemanggilan, jadi instance lamanya (beserta
+        // cache di dalamnya) harus dibuang agar tidak membawa state test sebelumnya.
         \Config\Services::reset(true);
 
         $this->securities = new SecurityModel();

@@ -10,6 +10,7 @@ use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Models\UserModel;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\Concerns\TruncatesDomainTables;
 
 /**
  * Aturan urutan buka/tutup periode (§25).
@@ -19,6 +20,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 final class AccountingPeriodTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
+    use TruncatesDomainTables;
 
     protected $migrate     = true;
     protected $migrateOnce = true;
@@ -31,10 +33,9 @@ final class AccountingPeriodTest extends CIUnitTestCase
     {
         parent::setUp();
 
-        // Setiap test berangkat dari keadaan yang sama. $refresh tidak dipakai
-        // karena akan menjalankan ulang SELURUH migrasi (termasuk Shield) untuk
-        // tiap test; mengosongkan satu tabel jauh lebih murah dan sama bersihnya.
-        $this->db->table('accounting_periods')->emptyTable();
+        // Setiap test berangkat dari keadaan yang sama; lihat TruncatesDomainTables
+        // untuk alasan FK check dimatikan sementara.
+        $this->truncateDomainTables();
 
         // Service di-share antar pemanggilan, jadi instance lamanya (beserta
         // cache di dalamnya) harus dibuang agar tidak membawa state test sebelumnya.

@@ -4,13 +4,28 @@ namespace Config;
 
 use App\Models\AccountingPeriodModel;
 use App\Models\AccountModel;
+use App\Models\AuditLogModel;
+use App\Models\CashTransactionModel;
+use App\Models\DividendTransactionModel;
+use App\Models\JournalEntryModel;
+use App\Models\JournalLineModel;
 use App\Models\SecuritiesAccountModel;
 use App\Models\SecurityModel;
 use App\Models\StockModel;
+use App\Models\StockPositionModel;
+use App\Models\StockTransactionModel;
 use App\Services\Accounting\AccountingPeriodService;
+use App\Services\Accounting\AuditLogger;
 use App\Services\Accounting\ChartOfAccountsService;
+use App\Services\Accounting\DocumentNumberService;
+use App\Services\Accounting\JournalPoster;
 use App\Services\MasterData\SecurityService;
 use App\Services\MasterData\StockService;
+use App\Services\Portfolio\PositionService;
+use App\Services\Transaction\CashTransactionService;
+use App\Services\Transaction\DividendTransactionService;
+use App\Services\Transaction\ReversalService;
+use App\Services\Transaction\StockTransactionService;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -56,5 +71,116 @@ class Services extends BaseService
         }
 
         return new AccountingPeriodService(new AccountingPeriodModel());
+    }
+
+    public static function documentNumber(bool $getShared = true): DocumentNumberService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('documentNumber');
+        }
+
+        return new DocumentNumberService();
+    }
+
+    public static function auditLogger(bool $getShared = true): AuditLogger
+    {
+        if ($getShared) {
+            return static::getSharedInstance('auditLogger');
+        }
+
+        return new AuditLogger(new AuditLogModel());
+    }
+
+    /**
+     * Satu-satunya pintu masuk ke buku besar (§8).
+     */
+    public static function journalPoster(bool $getShared = true): JournalPoster
+    {
+        if ($getShared) {
+            return static::getSharedInstance('journalPoster');
+        }
+
+        return new JournalPoster(
+            new JournalEntryModel(),
+            new JournalLineModel(),
+            new AccountModel(),
+            new AccountingPeriodModel(),
+            static::accountingPeriod(),
+            static::documentNumber(),
+        );
+    }
+
+    public static function positions(bool $getShared = true): PositionService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('positions');
+        }
+
+        return new PositionService(new StockPositionModel(), new StockTransactionModel());
+    }
+
+    public static function cashTransactions(bool $getShared = true): CashTransactionService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('cashTransactions');
+        }
+
+        return new CashTransactionService(
+            new CashTransactionModel(),
+            new SecuritiesAccountModel(),
+            static::journalPoster(),
+            static::documentNumber(),
+            static::auditLogger(),
+        );
+    }
+
+    public static function stockTransactions(bool $getShared = true): StockTransactionService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('stockTransactions');
+        }
+
+        return new StockTransactionService(
+            new StockTransactionModel(),
+            new SecuritiesAccountModel(),
+            new StockModel(),
+            static::positions(),
+            static::journalPoster(),
+            static::documentNumber(),
+            static::auditLogger(),
+        );
+    }
+
+    public static function dividendTransactions(bool $getShared = true): DividendTransactionService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('dividendTransactions');
+        }
+
+        return new DividendTransactionService(
+            new DividendTransactionModel(),
+            new SecuritiesAccountModel(),
+            new StockModel(),
+            static::positions(),
+            static::journalPoster(),
+            static::documentNumber(),
+            static::auditLogger(),
+        );
+    }
+
+    public static function reversals(bool $getShared = true): ReversalService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reversals');
+        }
+
+        return new ReversalService(
+            new CashTransactionModel(),
+            new StockTransactionModel(),
+            new DividendTransactionModel(),
+            static::positions(),
+            static::journalPoster(),
+            static::auditLogger(),
+        );
     }
 }

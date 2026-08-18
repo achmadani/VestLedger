@@ -9,6 +9,7 @@ use CodeIgniter\Shield\Models\UserModel;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\Concerns\TruncatesDomainTables;
 use CodeIgniter\Test\FeatureTestTrait;
 
 /**
@@ -21,6 +22,7 @@ final class MasterDataAccessTest extends CIUnitTestCase
 {
     use AuthenticationTesting;
     use DatabaseTestTrait;
+    use TruncatesDomainTables;
     use FeatureTestTrait;
 
     protected $migrate     = true;
@@ -32,11 +34,12 @@ final class MasterDataAccessTest extends CIUnitTestCase
     {
         parent::setUp();
 
-        $this->db->table('securities_accounts')->emptyTable();
-        $this->db->table('securities')->emptyTable();
-        $this->db->table('stocks')->emptyTable();
-        $this->db->table('accounts')->emptyTable();
+        // Setiap test berangkat dari keadaan yang sama; lihat TruncatesDomainTables
+        // untuk alasan FK check dimatikan sementara.
+        $this->truncateDomainTables();
 
+        // Service di-share antar pemanggilan, jadi instance lamanya (beserta
+        // cache di dalamnya) harus dibuang agar tidak membawa state test sebelumnya.
         \Config\Services::reset(true);
         service('chartOfAccounts')->ensureSystemAccounts();
     }

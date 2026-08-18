@@ -150,6 +150,73 @@ Transfer antar sekuritas hanya memindahkan dimensi `securities_account_id` pada
 akun yang sama, sehingga **total kas global tidak berubah** dan tidak ada
 revenue/expense yang tersentuh (§40.5).
 
+## Konvensi nilai pada transaksi kas
+
+Seluruh transaksi kas memakai konvensi yang sama:
+
+- **`amount`** adalah nilai **pokok** transaksi,
+- **`fee`** adalah biaya yang menyertainya — selalu dibebankan ke akun 5100,
+- **`net_amount`** adalah pergerakan kas yang sesungguhnya pada rekening utama.
+
+| Transaksi | Kas berubah | Pokok dicatat di |
+|---|---|---|
+| Top Up | `+ (amount − fee)` | 3000 sebesar `amount` penuh |
+| Withdrawal | `− (amount + fee)` | 3200 sebesar `amount` |
+| Transfer | asal `− (amount + fee)`, tujuan `+ amount` | 1000, hanya berpindah dimensi |
+| Biaya Administrasi | `− amount` | 5100 sebesar `amount` |
+
+Top up mencatat modal disetor sebesar nilai **bruto** yang benar-benar disetorkan
+pemilik; biaya yang dipotong pihak lain adalah beban, bukan pengurang setoran.
+
+Transfer tanpa biaya tidak menyentuh satu pun akun pendapatan/beban dan total kas
+global tidak berubah (§40.5). Biaya transfer, bila ada, adalah peristiwa ekonomi
+tersendiri — uang benar-benar keluar — sehingga dicatat sebagai beban.
+
+## Pembatalan transaksi
+
+Tidak ada penghapusan (§40.8). Pembatalan menghasilkan **jurnal pembalik**:
+setiap baris jurnal asli dicatat ulang pada sisi yang berlawanan. Membalik dengan
+menukar sisi — bukan dengan mencatat nilai negatif — menjaga seluruh saldo
+debit/kredit tetap positif sehingga Trial Balance tetap terbaca wajar.
+
+Jurnal asli tidak diubah isinya; hanya statusnya menjadi `reversed`, dan jurnal
+pembalik menyimpan rujukan `reverses_entry_id` ke jurnal aslinya.
+
+**Batasan khusus transaksi saham:** hanya transaksi **terakhir** pada sebuah
+posisi yang dapat dibatalkan. Ini bukan batasan teknis melainkan konsekuensi
+akuntansi — average cost bersifat berurutan, sehingga membatalkan pembelian lama
+akan mengubah average cost yang dipakai penjualan-penjualan sesudahnya, dan
+realized gain/loss yang sudah terlanjur masuk laporan menjadi salah. Koreksi
+dilakukan dari transaksi paling akhir mundur ke belakang.
+
+## Presisi aritmetika
+
+Seluruh nilai uang dihitung memakai `App\ValueObjects\Money`, yang menyimpan
+nilai sebagai **bilangan bulat sen** — bukan float. Pada float, `0.1 + 0.2`
+tidak sama dengan `0.3`, dan selisih satu sen membuat jurnal tidak balance.
+
+`bcmath` sengaja tidak dipakai agar tidak ada ketergantungan ekstensi yang
+mungkin tidak tersedia di shared hosting (§35).
+
+Harga per lembar memakai `App\ValueObjects\Price` dengan presisi 4 desimal;
+perkalian harga × jumlah lembar diturunkan ke 2 desimal dengan pembulatan
+half-up, seluruhnya dalam aritmetika bilangan bulat.
+
+## Pengaman berlapis
+
+| Lapisan | Yang dijaga |
+|---|---|
+| `Money` / `Price` | Aritmetika eksak, tanpa galat pembulatan float |
+| `JournalDraft` | Nilai negatif dibalik ke sisi lawan, bukan menjadi debit negatif |
+| `JournalPoster` | Debit = kredit, minimal dua baris, dimensi wajib, periode terbuka |
+| `JournalPoster` | **Menolak berjalan di luar database transaction** |
+| `PositionService` | Menolak mengubah posisi di luar database transaction |
+| CHECK constraint DB | `journal_lines`: satu baris hanya debit ATAU kredit, tidak negatif |
+| CHECK constraint DB | `stock_positions`: quantity dan book_value tidak boleh negatif |
+
+Lapisan terakhir penting: seandainya ada bug di kode aplikasi yang lolos seluruh
+validasi, database sendiri yang menolak baris jurnal yang cacat.
+
 ## Periode akuntansi
 
 Setiap transaksi harus jatuh pada periode yang berstatus `open`. Dua aturan

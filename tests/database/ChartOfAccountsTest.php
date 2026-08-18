@@ -9,6 +9,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\AccountModel;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\Concerns\TruncatesDomainTables;
 
 /**
  * Perlindungan akun inti. Bila salah satu akun ini hilang, dinonaktifkan, atau
@@ -19,6 +20,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 final class ChartOfAccountsTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
+    use TruncatesDomainTables;
 
     protected $migrate     = true;
     protected $migrateOnce = true;
@@ -31,8 +33,12 @@ final class ChartOfAccountsTest extends CIUnitTestCase
     {
         parent::setUp();
 
-        // Lihat catatan yang sama di AccountingPeriodTest::setUp().
-        $this->db->table('accounts')->emptyTable();
+        // Setiap test berangkat dari keadaan yang sama; lihat TruncatesDomainTables
+        // untuk alasan FK check dimatikan sementara.
+        $this->truncateDomainTables();
+
+        // Service di-share antar pemanggilan, jadi instance lamanya (beserta
+        // cache di dalamnya) harus dibuang agar tidak membawa state test sebelumnya.
         \Config\Services::reset(true);
 
         $this->accounts = new AccountModel();

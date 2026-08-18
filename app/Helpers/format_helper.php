@@ -111,6 +111,25 @@ if (! function_exists('fmt_price')) {
     }
 }
 
+if (! function_exists('fmt_avg_cost')) {
+    /**
+     * Average cost per lembar.
+     *
+     * Ditampilkan dengan presisi lebih rendah daripada harga transaksi
+     * (Config\Investment::$averageCostDisplayScale), karena average cost adalah
+     * nilai TURUNAN dari book_value / quantity — bukan harga yang pernah
+     * benar-benar terjadi. Contoh §12: Rp3.206.000 / 3.000 = Rp1.068,67.
+     */
+    function fmt_avg_cost(int|float|string|null $value): string
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+
+        return fmt_number($value, investment_config()->averageCostDisplayScale);
+    }
+}
+
 if (! function_exists('fmt_qty')) {
     /**
      * Jumlah lembar saham: 10000 -> "10.000".

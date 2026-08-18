@@ -68,11 +68,40 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
         $routes->post('accounts/(:num)/delete', 'Master\Accounts::delete/$1', ['filter' => 'permission:masterdata.manage']);
     });
 
+    // ---------------------------------------------------------------- Transaksi
+    $routes->group('transactions', static function (RouteCollection $routes): void {
+        $routes->get('/', 'Transactions\Index::index', ['filter' => 'permission:transaction.view']);
+
+        // Transaksi kas: satu controller melayani empat jenis lewat slug.
+        $routes->get('(top-up|withdrawal|transfer|fee)', 'Transactions\Cash::form/$1', ['filter' => 'permission:transaction.create']);
+        $routes->post('(top-up|withdrawal|transfer|fee)', 'Transactions\Cash::store/$1', ['filter' => 'permission:transaction.create']);
+
+        $routes->get('buy', 'Transactions\Stocks::buyForm', ['filter' => 'permission:transaction.create']);
+        $routes->get('sell', 'Transactions\Stocks::sellForm', ['filter' => 'permission:transaction.create']);
+        $routes->post('(buy|sell)', 'Transactions\Stocks::store/$1', ['filter' => 'permission:transaction.create']);
+
+        $routes->get('dividend', 'Transactions\Dividends::form', ['filter' => 'permission:transaction.create']);
+        $routes->post('dividend', 'Transactions\Dividends::store', ['filter' => 'permission:transaction.create']);
+
+        // Pembatalan selalu POST: aksi berdampak besar tidak boleh dapat dipicu
+        // lewat tautan atau prefetch browser.
+        $routes->post('(cash|stock|dividend)/(:num)/reverse', 'Transactions\Index::reverse/$1/$2', ['filter' => 'permission:transaction.void']);
+    });
+
     // ---------------------------------------------------------------- Akuntansi
     $routes->group('accounting', static function (RouteCollection $routes): void {
+        $routes->get('journal', 'Accounting\Journal::index', ['filter' => 'permission:report.view']);
+        $routes->get('journal/(:num)', 'Accounting\Journal::show/$1', ['filter' => 'permission:report.view']);
+        $routes->get('ledger', 'Accounting\Ledger::index', ['filter' => 'permission:report.view']);
+
         $routes->get('periods', 'Accounting\Periods::index', ['filter' => 'permission:report.view']);
         $routes->post('periods/generate', 'Accounting\Periods::generate', ['filter' => 'permission:period.manage']);
         $routes->post('periods/(:num)/close', 'Accounting\Periods::close/$1', ['filter' => 'permission:period.manage']);
         $routes->post('periods/(:num)/reopen', 'Accounting\Periods::reopen/$1', ['filter' => 'permission:period.manage']);
+    });
+
+    // ---------------------------------------------------------------- Sistem
+    $routes->group('system', static function (RouteCollection $routes): void {
+        $routes->get('audit', 'System\Audit::index', ['filter' => 'permission:audit.view']);
     });
 });
