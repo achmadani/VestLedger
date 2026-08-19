@@ -241,6 +241,10 @@ Checklist sebelum menyerahkan aplikasi:
 
 ## 14. Deploy otomatis setiap `git push`
 
+> Untuk menerapkan mekanisme ini pada **proyek baru**, ada panduan agnostik
+> yang bisa dipakai ulang: [CPANEL-DEPLOY-PLAYBOOK.md](CPANEL-DEPLOY-PLAYBOOK.md).
+
+
 Hosting tidak menyediakan SSH maupun terminal, tetapi menyediakan **cPanel Git™
 Version Control** (yang membaca `.cpanel.yml`) dan **API token cPanel**. Dua hal
 itu cukup untuk membuat setiap push ke `main` langsung ter-deploy: GitHub Actions

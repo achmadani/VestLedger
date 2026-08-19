@@ -1,17 +1,22 @@
 name: Deploy ke hosting
 
-# Setiap push ke main memicu deploy. Hosting tidak menyediakan SSH maupun
-# terminal, jadi pemicunya adalah API cPanel — dua panggilan yang menirukan
-# persis dua tombol di Git Version Control:
+# Pemicunya API cPanel — dua panggilan yang menirukan persis dua tombol di Git
+# Version Control:
 #
 #   1. VersionControl/update            → "Update from Remote" (git pull)
 #   2. VersionControlDeployment/create  → "Deploy HEAD Commit" (jalankan .cpanel.yml)
 #
 # Hasil deployment ditunggu, supaya workflow yang hijau berarti berkas benar-benar
 # sudah terpasang.
+#
+# ⏸️  DINONAKTIFKAN SEMENTARA. Pemicu `push` sengaja dimatikan sampai keempat
+# secret cPanel terisi (CPANEL_HOST/USER/TOKEN/REPO_ROOT) dan working tree di
+# server dipastikan bersih; tanpa itu tiap push gagal dan mengirim email.
+# Deploy dijalankan manual dari cPanel (Update from Remote → Deploy HEAD Commit).
+# Untuk mengaktifkan lagi: kembalikan blok `push:` di bawah, lalu isi secret.
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 concurrency:

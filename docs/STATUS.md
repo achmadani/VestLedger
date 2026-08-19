@@ -121,7 +121,8 @@ commit yang di-push — lalu menjalankan `.cpanel.yml`, yang menyalin `public/` 
 document root, membersihkan cache, dan menjalankan migrasi. Rinciannya, termasuk
 tiga hal yang disiapkan manual sekali di server (`vendor/`, `.env`, dan token
 clone GitHub), ada di
-[DEPLOYMENT.md §14](DEPLOYMENT.md#14-deploy-otomatis-setiap-git-push).
+[DEPLOYMENT.md §14](DEPLOYMENT.md#14-deploy-otomatis-setiap-git-push). Panduan yang bisa
+dipakai ulang untuk proyek baru: [CPANEL-DEPLOY-PLAYBOOK.md](CPANEL-DEPLOY-PLAYBOOK.md).
 
 ```bash
 make deploy       # ulangi deploy tanpa push baru
