@@ -15,6 +15,17 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 ## [Belum dirilis]
 
 ### Diperbaiki
+- **Login Google gagal di produksi** dengan "Tidak dapat menghubungi server
+  Google". Hosting memblokir `curl_exec`, sedangkan seluruh permintaan keluar
+  CodeIgniter (`service('curlrequest')`) bertumpu pada ekstensi cURL.
+  `App\Libraries\HttpClient` yang baru mencoba tiga jalur berurutan — cURL,
+  stream wrapper (`allow_url_fopen`), lalu **socket TLS** yang tidak
+  membutuhkan keduanya. Ketiganya diuji terhadap endpoint Google sungguhan dan
+  memberi hasil identik. Bila semua jalur tertutup, pesan kesalahannya kini
+  menyebut jalur mana yang diblokir hosting, bukan sekadar "gagal menghubungi".
+
+
+### Diperbaiki
 - **Aplikasi mati total setelah menambahkan satu properti Config.** Cache config
   CI4 memuat objek lewat `BaseConfig::__set_state()`, yang menyalin properti satu
   per satu; properti yang belum ada di cache lama bernilai `null` dan ditolak

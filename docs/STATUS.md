@@ -93,6 +93,21 @@ atribut `@click`/`@input`; uji perilaku interaktif lewat browser.
 
 Titik akhir JSON juga dibungkus kerangka HTML oleh test harness.
 
+### Hosting memblokir hal-hal yang dianggap pasti ada
+
+Tiga kali terjadi, dan pola yang sama: sesuatu yang "pasti ada di PHP" ternyata
+ditutup, dan gejalanya jauh dari sebabnya.
+
+| Yang diblokir | Gejalanya | Jalan keluarnya |
+|---|---|---|
+| `ext-zip` | "Class ZipArchive not found" saat impor XLSX | `App\Libraries\ZipFileReader` membaca ZIP sendiri |
+| shell / `.sh` | tombol Deploy cPanel mati | seluruh perintah inline di `.cpanel.yml` |
+| `curl_exec` | "Tidak dapat menghubungi server Google" | `App\Libraries\HttpClient`, tiga jalur keluar |
+
+Pelajarannya: di hosting ini, **jangan bertumpu pada satu jalur** dan jangan
+menyalakan ekstensi lewat cPanel untuk mengatasinya — menyalakan `zip` justru
+berisiko mematikan driver MySQL (DEPLOYMENT.md).
+
 ### Config caching mematikan aplikasi saat ada properti Config baru
 
 Cache config CI4 memuat objek lewat `BaseConfig::__set_state()`, yang menyalin

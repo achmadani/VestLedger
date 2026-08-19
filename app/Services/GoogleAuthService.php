@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
+use App\Libraries\HttpClient;
 use App\Services\Accounting\AuditLogger;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Models\UserModel;
@@ -30,7 +31,11 @@ class GoogleAuthService
         private GoogleAuth $config,
         private UserModel $users,
         private AuditLogger $audit,
+        private ?HttpClient $http = null,
     ) {
+        // Tidak memakai service('curlrequest'): hosting produksi memblokir
+        // curl_exec, dan CodeIgniter tidak punya jalur keluar lain.
+        $this->http ??= new HttpClient(15);
     }
 
     public function isEnabled(): bool
@@ -130,24 +135,19 @@ class GoogleAuthService
      */
     private function fetchProfile(string $code): array
     {
-        $client = service('curlrequest', ['timeout' => 15]);
-
         try {
-            $tokenResponse = $client->post($this->config->tokenUrl, [
-                'form_params' => [
-                    'code'          => $code,
-                    'client_id'     => $this->config->clientId,
-                    'client_secret' => $this->config->clientSecret,
-                    'redirect_uri'  => $this->config->redirectUri(),
-                    'grant_type'    => 'authorization_code',
-                ],
-                'http_errors' => false,
+            $tokenResponse = $this->http->postForm($this->config->tokenUrl, [
+                'code'          => $code,
+                'client_id'     => $this->config->clientId,
+                'client_secret' => $this->config->clientSecret,
+                'redirect_uri'  => $this->config->redirectUri(),
+                'grant_type'    => 'authorization_code',
             ]);
-        } catch (\Throwable) {
-            throw new BusinessRuleException('Tidak dapat menghubungi server Google. Coba lagi beberapa saat.');
+        } catch (\Throwable $e) {
+            throw new BusinessRuleException($this->connectionMessage($e));
         }
 
-        $token = json_decode((string) $tokenResponse->getBody(), true);
+        $token = json_decode($tokenResponse['body'], true);
 
         if (! is_array($token) || empty($token['access_token'])) {
             // Isi balasan sengaja TIDAK ikut ditampilkan maupun dicatat:
@@ -156,21 +156,44 @@ class GoogleAuthService
         }
 
         try {
-            $userResponse = $client->get($this->config->userInfoUrl, [
-                'headers'     => ['Authorization' => 'Bearer ' . $token['access_token']],
-                'http_errors' => false,
+            $userResponse = $this->http->get($this->config->userInfoUrl, [
+                'Authorization' => 'Bearer ' . $token['access_token'],
             ]);
-        } catch (\Throwable) {
-            throw new BusinessRuleException('Tidak dapat mengambil profil dari Google.');
+        } catch (\Throwable $e) {
+            throw new BusinessRuleException($this->connectionMessage($e));
         }
 
-        $profile = json_decode((string) $userResponse->getBody(), true);
+        $profile = json_decode($userResponse['body'], true);
 
         if (! is_array($profile)) {
             throw new BusinessRuleException('Profil dari Google tidak dapat dibaca.');
         }
 
         return $profile;
+    }
+
+    /**
+     * Pesan kegagalan koneksi yang menyebut sebabnya.
+     *
+     * Server produksi tidak punya shell maupun akses log yang nyaman, sehingga
+     * pesan inilah satu-satunya alat diagnosis yang dimiliki pengguna. Bila
+     * seluruh jalur keluar tertutup, yang perlu diketahui bukan "gagal
+     * menghubungi", melainkan jalur mana yang diblokir hosting.
+     */
+    private function connectionMessage(\Throwable $e): string
+    {
+        $blocked = array_keys(array_filter(
+            $this->http->availability(),
+            static fn (bool $usable): bool => ! $usable,
+        ));
+
+        $message = 'Tidak dapat menghubungi server Google.';
+
+        if ($blocked !== []) {
+            $message .= ' Jalur keluar yang diblokir hosting: ' . implode(', ', $blocked) . '.';
+        }
+
+        return $message . ' (' . $e->getMessage() . ')';
     }
 
     private function assertEnabled(): void

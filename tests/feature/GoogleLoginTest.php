@@ -53,6 +53,37 @@ final class GoogleLoginTest extends CIUnitTestCase
         return $config;
     }
 
+    /**
+     * Bila seluruh jalur keluar diblokir hosting, pesannya harus menyebut jalur
+     * mana — di server tanpa shell, itulah satu-satunya alat diagnosis.
+     *
+     * Kegagalan seperti ini benar-benar terjadi: hosting memblokir curl_exec,
+     * dan pesan lama hanya berbunyi "Tidak dapat menghubungi server Google".
+     */
+    public function testConnectionFailureNamesTheBlockedTransports(): void
+    {
+        $config               = new GoogleAuth();
+        $config->clientId     = 'uji.apps.googleusercontent.com';
+        $config->clientSecret = 'rahasia-uji';
+
+        $service = new \App\Services\GoogleAuthService(
+            $config,
+            new UserModel(),
+            service('auditLogger'),
+            new \App\Libraries\HttpClient(5, ['tidak-ada-transport']),
+        );
+
+        session()->set('google_oauth_state', 'state-uji');
+
+        try {
+            $service->completeLogin('kode-uji', 'state-uji');
+            $this->fail('Seharusnya gagal karena tidak ada jalur keluar.');
+        } catch (\App\Exceptions\BusinessRuleException $e) {
+            $this->assertStringContainsString('Tidak dapat menghubungi server Google', $e->getMessage());
+            $this->assertStringContainsString('Tidak ada transport HTTP yang tersedia', $e->getMessage());
+        }
+    }
+
     private function makeUser(string $email): User
     {
         $users = new UserModel();

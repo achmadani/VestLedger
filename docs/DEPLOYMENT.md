@@ -14,12 +14,28 @@ dan hasilnya ikut di-commit, sehingga di server cukup menyajikan file statis.
 | `mysqli` (atau `nd_mysqli`) | **wajib** — driver database |
 | `zlib` | dibutuhkan hanya bila berkas XLSX yang diimpor terkompresi |
 | `zip` | **tidak diperlukan** |
+| `curl` | **tidak diperlukan** — hosting ini memblokir `curl_exec` |
 
 Impor harga pasar (§14) membaca XLSX **tanpa** `ext-zip`: hosting ini tidak
 memilikinya, dan usaha menyalakannya di cPanel berakhir dengan peringatan
 *"pdo_mysql, nd_mysqli skipped as conflicting"*. Karena XLSX pada dasarnya ZIP
 berisi XML, kontainernya dibaca sendiri oleh `App\Libraries\ZipFileReader`.
 Bila `ext-zip` kebetulan ada, ia dipakai; bila tidak, hasilnya sama persis.
+
+Login Google (§15) juga tidak bergantung pada cURL. Hosting ini memblokir
+`curl_exec`, sedangkan seluruh permintaan keluar CodeIgniter bertumpu padanya —
+akibatnya login berhenti pada "Tidak dapat menghubungi server Google".
+`App\Libraries\HttpClient` mencoba tiga jalur berurutan:
+
+| Jalur | Syarat |
+|---|---|
+| cURL | ekstensi `curl` ada **dan** `curl_exec` tidak diblokir |
+| stream wrapper | `allow_url_fopen = On` |
+| socket TLS | tidak butuh keduanya — `stream_socket_client` + transport `ssl` |
+
+Jalur ketiga inilah yang dipakai di produksi. Bila ketiganya tertutup, pesan
+kesalahannya **menyebut jalur mana yang diblokir**, supaya dapat langsung
+disampaikan ke hosting.
 
 > ⚠️ **Jangan mengubah pilihan ekstensi di cPanel hanya demi impor XLSX.**
 > Menyalakan `zip` lewat "Select PHP Version" dapat mematikan driver MySQL yang
