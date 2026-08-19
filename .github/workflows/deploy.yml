@@ -1,0 +1,149 @@
+name: Deploy ke hosting
+
+# Setiap push ke main memicu deploy. Hosting tidak menyediakan SSH maupun
+# terminal, jadi pemicunya adalah API cPanel: satu panggilan untuk menarik
+# commit baru (git pull di server), satu lagi untuk menjalankan deployment
+# yang dijelaskan .cpanel.yml.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Dua push berdekatan tidak boleh men-deploy bersamaan: keduanya menyentuh
+# document root dan database yang sama. Yang belakangan menunggu, tidak
+# dibatalkan, supaya commit terakhir selalu benar-benar ter-deploy.
+concurrency:
+  group: deploy-hosting
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Pull lalu deploy lewat API cPanel
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # vendor/ tidak ikut ter-deploy: server tidak punya Composer maupun shell,
+      # jadi ia diunggah manual. Perubahan composer.lock karena itu harus
+      # terlihat, bukan diam-diam membuat aplikasi berjalan dengan vendor lama.
+      - name: Ingatkan bila dependency berubah
+        if: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          changed="$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" \
+                       --jq '.files[].filename' 2>/dev/null || true)"
+          if grep -qx 'composer.lock' <<<"$changed"; then
+            echo "::warning::composer.lock berubah. Jalankan 'composer install --no-dev --optimize-autoloader' di lokal, lalu unggah ulang vendor/ ke /home/USERNAME/repositories/vestledger lewat File Manager."
+          else
+            echo "composer.lock tidak berubah — vendor/ di server masih sesuai."
+          fi
+
+      - name: Deploy
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ vars.CPANEL_PORT || '2083' }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          for v in CPANEL_HOST CPANEL_USER CPANEL_TOKEN REPO_ROOT; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Secret $v belum diisi di Settings > Secrets and variables > Actions."
+              exit 1
+            fi
+          done
+
+          # Host boleh ditulis dengan atau tanpa skema; garis miring di ujung
+          # membuat URL API menjadi ganda dan ditolak server.
+          host="${CPANEL_HOST%/}"
+          case "$host" in https://*|http://*) ;; *) host="https://$host" ;; esac
+          base="${host}:${CPANEL_PORT}/execute"
+
+          uapi() {
+            local endpoint="$1"; shift
+            local args=()
+            local kv
+            for kv in "$@"; do args+=(--data-urlencode "$kv"); done
+            curl --silent --show-error --get --max-time 120 \
+                 --header "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+                 "${base}/${endpoint}" "${args[@]}"
+          }
+
+          # UAPI membalas HTTP 200 meskipun gagal; status sebenarnya ada di body.
+          # Balasan non-JSON berarti permintaan tidak sampai ke UAPI sama sekali
+          # (host, port, atau token salah) — kasus tersering pada pemasangan awal.
+          assert_ok() {
+            local body="$1" label="$2"
+            if ! jq -e . >/dev/null 2>&1 <<<"$body"; then
+              echo "::error::${label}: balasan server bukan JSON. Periksa CPANEL_HOST, CPANEL_PORT, dan CPANEL_TOKEN."
+              printf '%s\n' "$body" | head -c 500
+              exit 1
+            fi
+            if [ "$(jq -r '.status // 0' <<<"$body")" != "1" ]; then
+              echo "::error::${label} gagal: $(jq -c '.errors // .' <<<"$body")"
+              exit 1
+            fi
+          }
+
+          echo "::group::Menarik commit baru di server (branch ${BRANCH})"
+          body="$(uapi VersionControl/update "repository_root=${REPO_ROOT}" "branch=${BRANCH}")"
+          assert_ok "$body" "VersionControl/update"
+          jq -r '(.data.last_update // {})
+                 | "commit  : \(.identifier // "?")\npesan   : \(.message // "?")\nauthor  : \(.author // "?")\ntanggal : \(.date // "?")"' <<<"$body"
+          echo "::endgroup::"
+
+          echo "--- Menjalankan deployment (.cpanel.yml) ---"
+          body="$(uapi VersionControlDeployment/create "repository_root=${REPO_ROOT}")"
+          assert_ok "$body" "VersionControlDeployment/create"
+          task_id="$(jq -r '.data.task_id // .task_id // empty' <<<"$body")"
+          log_path="$(jq -r '.data.log_path // empty' <<<"$body")"
+          [ -n "$task_id" ] || { echo "::error::Server tidak mengembalikan task_id: $body"; exit 1; }
+          echo "task_id  : $task_id"
+          [ -n "$log_path" ] && echo "log cPanel: $log_path"
+
+          # Deployment berjalan asinkron di antrean cPanel; hasilnya ditunggu
+          # agar workflow yang hijau benar-benar berarti berkas sudah terpasang.
+          for i in $(seq 1 60); do
+            sleep 5
+            poll="$(uapi VersionControlDeployment/retrieve "repository_root=${REPO_ROOT}")"
+            assert_ok "$poll" "VersionControlDeployment/retrieve"
+            # task_id dibandingkan sebagai teks: UAPI mengembalikannya kadang
+            # sebagai angka, dan perbandingan angka-dengan-teks di jq selalu salah.
+            task="$(jq -c --arg id "$task_id" '.data[]? | select((.task_id | tostring) == $id)' <<<"$poll")"
+            [ -n "$task" ] || { echo "menunggu... (task belum muncul di antrean)"; continue; }
+
+            if [ "$(jq -r '.timestamps.succeeded // empty' <<<"$task")" != "" ]; then
+              echo "Deployment selesai."
+              exit 0
+            fi
+            if [ "$(jq -r '.timestamps.failed // empty' <<<"$task")" != "" ]; then
+              echo "::error::Deployment gagal di server. Baca writable/logs/deploy.log lewat File Manager${log_path:+, atau ${log_path}}."
+              jq . <<<"$task"
+              exit 1
+            fi
+            echo "menunggu... (deployment masih berjalan)"
+          done
+
+          echo "::error::Deployment belum selesai setelah 5 menit. Periksa writable/logs/deploy.log di server."
+          exit 1
+
+      - name: Periksa situs merespons
+        # Dilewati bila variable SITE_URL belum diisi.
+        if: ${{ vars.SITE_URL != '' }}
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --location --max-time 30 \
+                       --output /dev/null --write-out '%{http_code}' "$SITE_URL")"
+          echo "HTTP $code dari $SITE_URL"
+          case "$code" in
+            200|302) echo "Situs merespons normal." ;;
+            *) echo "::error::Situs membalas HTTP $code setelah deploy."; exit 1 ;;
+          esac

@@ -7,7 +7,7 @@ PHP  := /opt/homebrew/opt/php@8.3/bin/php
 NVM  := . $$HOME/.nvm/nvm.sh && nvm use 20 >/dev/null &&
 PORT := 8123
 
-.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks health rebuild import-stocks
+.PHONY: help setup serve dev build test migrate rollback fresh seed user-create version release hooks health rebuild import-stocks deploy deploy-log
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -49,6 +49,15 @@ release: ## Naikkan versi, commit, lalu push. PART=patch|minor|major (default pa
 	git push origin $$(git rev-parse --abbrev-ref HEAD)
 	@# build.json ditulis SETELAH commit, sehingga menunjuk commit rilis itu sendiri.
 	@bash bin/write-build-info.sh
+
+deploy: ## Jalankan ulang deploy ke hosting tanpa push baru (butuh gh CLI)
+	@# Deploy normalnya dipicu otomatis oleh push (lihat .github/workflows/deploy.yml).
+	@# Target ini untuk mengulang deploy yang gagal, mis. setelah vendor/ diunggah.
+	gh workflow run deploy.yml --ref $$(git rev-parse --abbrev-ref HEAD)
+	@echo "Pantau: gh run watch  ·  atau make deploy-log"
+
+deploy-log: ## Tampilkan log deploy terakhir dari GitHub Actions
+	gh run list --workflow=deploy.yml --limit 5
 
 test: ## Jalankan seluruh test
 	$(PHP) vendor/bin/phpunit --colors=always

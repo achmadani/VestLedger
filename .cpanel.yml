@@ -1,0 +1,91 @@
+---
+# Deploy config untuk cPanel "Git™ Version Control" (TANPA SSH, tanpa terminal).
+#
+# Prasyarat (disiapkan manual sekali lewat File Manager, TIDAK ditangani file ini):
+#   - vendor/  → hasil `composer install --no-dev --optimize-autoloader`, di-upload
+#                ke dalam folder repo hasil clone
+#   - .env     → dibuat di root folder repo (CI_ENVIRONMENT=production, app.baseURL,
+#                kredensial DB, encryption.key)
+#   - Database → dibuat lewat cPanel; skema diisi migrasi (task 3) atau phpMyAdmin
+#
+# Yang dilakukan file ini setiap kali deployment dijalankan — lewat tombol
+# "Deploy HEAD Commit" maupun lewat API dari GitHub Actions:
+#   1. Menyalin ISI folder public/ (termasuk .htaccess, assets, favicon, robots.txt)
+#      ke document root jurnal.sinau.biz.id.
+#   2. Menulis paths.php di document root. Berkas itu dibaca public/index.php dan
+#      berisi path absolut ke app/Config/Paths.php, sehingga app/, vendor/, dan
+#      .env TETAP di luar web root tanpa perlu menyunting index.php di server.
+#   3. Mencatat commit yang ter-deploy di writable/build.json (tampil di sidebar).
+#   4. Membersihkan cache CI4, lalu menjalankan migrasi dan pemeriksaan
+#      kesehatan bila PHP CLI tersedia.
+#
+# Catatan penting:
+#   - SATU-satunya baris yang perlu disesuaikan adalah DEPLOYPATH di task pertama.
+#     Path repo TIDAK di-hardcode — dideteksi otomatis via $(pwd), karena cPanel
+#     menjalankan task dari root folder repo.
+#   - Setiap task ditulis sebagai SATU rantai perintah dalam satu shell, supaya
+#     $DEPLOYPATH dan $APPPATH tetap valid (cPanel tidak menjamin variabel
+#     lintas-task tetap ada).
+#   - TIDAK ada berkas .sh yang dieksekusi: hosting memblokirnya. Semua perintah
+#     inline, dengan path absolut untuk setiap biner.
+#   - rsync/composer sengaja TIDAK dipakai (sering tidak tersedia di shared hosting).
+#   - `spark optimize` sengaja TIDAK dijalankan: perintah itu memanggil
+#     `composer install --no-dev` (system/Commands/Utilities/Optimize.php), yang di
+#     hosting ini gagal — atau lebih buruk, menulis ulang vendor/ yang di-upload
+#     manual. Cachenya tidak hilang: app/Config/Optimize.php sudah mengaktifkan
+#     config & locator caching, dan CI4 membangunnya sendiri pada request pertama.
+#     Yang perlu dilakukan deploy hanyalah menghapus cache lama (task 2).
+#   - Berkas yang dihapus dari public/ tidak ikut terhapus di document root: ini
+#     menyalin, bukan menyinkronkan, supaya cgi-bin/ dan .well-known/ milik
+#     hosting tidak ikut hilang. Hapus manual bila memang perlu.
+
+deployment:
+  tasks:
+    # 1. Isi public/ ke document root + jembatan ke direktori aplikasi.
+    - 'export DEPLOYPATH=/home/sinaubiz/public_html/jurnal.sinau.biz.id &&
+       export APPPATH="$(pwd)" &&
+       /bin/mkdir -p "$DEPLOYPATH" &&
+       /bin/cp -R "$APPPATH/public/." "$DEPLOYPATH/" &&
+       /bin/echo "<?php return \"$APPPATH/app/Config/Paths.php\";" > "$DEPLOYPATH/paths.php" &&
+       /bin/echo "[deploy] public/ -> $DEPLOYPATH (app: $APPPATH)"'
+
+    # 2. Metadata build, direktori writable, dan pembersihan cache.
+    #    Cache locator dibersihkan SEBELUM migrasi: selama ia ada, berkas baru
+    #    (termasuk migrasi yang baru ditambahkan) tidak terlihat oleh spark.
+    - 'export APPPATH="$(pwd)" &&
+       export COMMIT="$(/usr/bin/git rev-parse HEAD 2>/dev/null ||
+                        /usr/local/cpanel/3rdparty/bin/git rev-parse HEAD 2>/dev/null)" &&
+       /bin/mkdir -p "$APPPATH/writable/cache" "$APPPATH/writable/logs"
+                     "$APPPATH/writable/session" "$APPPATH/writable/uploads"
+                     "$APPPATH/writable/debugbar" &&
+       /bin/rm -f "$APPPATH/writable/cache/FileLocatorCache"
+                  "$APPPATH/writable/cache/FactoriesCache_config" &&
+       /bin/echo "{\"commit\": \"$COMMIT\", \"built_at\": \"$(/bin/date +%Y-%m-%d\ %H:%M:%S)\"}"
+                 > "$APPPATH/writable/build.json" &&
+       /bin/chmod -R u+rwX "$APPPATH/writable" &&
+       /bin/echo "[deploy] commit $COMMIT"'
+
+    # 3. Migrasi dan pemeriksaan kesehatan.
+    #    Seluruh keluaran masuk ke writable/logs/deploy.log agar dapat dibaca lewat
+    #    File Manager: hosting ini tidak punya terminal.
+    #    Bila PHP CLI tidak tersedia, task tetap berhasil dan alasannya dicatat di
+    #    log — migrasi lalu perlu dijalankan dari mesin lokal (lihat DEPLOYMENT.md §6).
+    - 'export APPPATH="$(pwd)" && export LOG="$APPPATH/writable/logs/deploy.log" &&
+       /bin/echo "===== $(/bin/date +%Y-%m-%d\ %H:%M:%S) deploy $(/bin/cat VERSION 2>/dev/null) =====" >> "$LOG" &&
+       PHPBIN="" &&
+       for p in /usr/local/bin/php /opt/cpanel/ea-php83/root/usr/bin/php
+                /opt/cpanel/ea-php82/root/usr/bin/php /usr/bin/php; do
+         if [ -x "$p" ] && "$p" -r "exit(PHP_VERSION_ID >= 80200 ? 0 : 1);" > /dev/null 2>&1; then
+           PHPBIN="$p"; break;
+         fi;
+       done &&
+       if [ -z "$PHPBIN" ]; then
+         /bin/echo "PHP CLI >= 8.2 tidak ditemukan; migrasi dilewati" >> "$LOG";
+       elif [ ! -f "$APPPATH/vendor/autoload.php" ] || [ ! -f "$APPPATH/.env" ]; then
+         /bin/echo "vendor/ atau .env belum ada; migrasi dilewati" >> "$LOG";
+       else
+         /bin/echo "php: $PHPBIN" >> "$LOG";
+         "$PHPBIN" spark migrate --all >> "$LOG" 2>&1 &&
+         { "$PHPBIN" spark vestledger:health >> "$LOG" 2>&1 || true; };
+       fi &&
+       /bin/echo "[deploy] selesai — rincian di writable/logs/deploy.log"'

@@ -14,6 +14,27 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+### Ditambahkan
+- **Deploy otomatis setiap push ke `main`.** GitHub Actions memanggil API cPanel
+  (`VersionControl/update` lalu `VersionControlDeployment/create`) dan menunggu
+  hasilnya, sehingga workflow yang hijau berarti berkas benar-benar sudah
+  terpasang. Pekerjaan di server dijelaskan `.cpanel.yml`: menyalin `public/` ke
+  document root subdomain, menulis `paths.php`, mencatat commit yang ter-deploy,
+  menghapus cache lama, lalu menjalankan migrasi dan pemeriksaan kesehatan.
+  Seluruh perintah ditulis inline dengan path absolut — hosting tidak punya SSH
+  maupun terminal dan menolak mengeksekusi berkas `.sh`.
+- `make deploy` dan `make deploy-log` untuk mengulang dan memantau deploy.
+
+### Diubah
+- `public/index.php` membaca `paths.php` di sebelahnya bila berkas itu ada,
+  sehingga direktori aplikasi dapat berada di luar document root tanpa menyunting
+  `index.php` di server. Berkas itu ditulis saat deploy dan tidak ada di mesin
+  pengembang.
+- Deploy **tidak** menjalankan `spark optimize`. Perintah itu memanggil
+  `composer install --no-dev`, yang di shared hosting gagal — atau, bila Composer
+  ada, menulis ulang `vendor/` yang di-upload manual. Cache config dan locator
+  tetap aktif; CI4 membangunnya sendiri setelah cache lama dihapus.
+
 ## [0.9.0] — 2026-08-19
 
 ### Diperbaiki

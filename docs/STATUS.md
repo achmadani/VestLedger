@@ -115,6 +115,23 @@ make release PART=minor      # untuk pekerjaan besar
 `writable/build.json` tidak di-commit; ia dihasilkan saat build/deploy sehingga
 menunjuk commit yang benar-benar ter-deploy.
 
+Setiap push ke `main` **men-deploy sendiri** ke hosting: GitHub Actions memanggil
+API cPanel untuk menarik commit baru lalu menjalankan `.cpanel.yml`. Hosting itu
+tidak punya SSH, tidak punya terminal, dan menolak mengeksekusi berkas `.sh`,
+jadi seluruh perintah deploy ditulis inline di `.cpanel.yml`. Rinciannya —
+termasuk tiga hal yang disiapkan manual sekali di server (`vendor/`, `.env`, dan
+token clone GitHub) — ada di
+[DEPLOYMENT.md §14](DEPLOYMENT.md#14-deploy-otomatis-setiap-git-push).
+
+```bash
+make deploy       # ulangi deploy tanpa push baru
+make deploy-log   # riwayat jalannya workflow
+```
+
+Satu hal yang **tidak** otomatis: `vendor/`. Server tidak punya Composer maupun
+shell, jadi setiap kali `composer.lock` berubah, `vendor/` harus diunggah ulang
+lewat File Manager. Workflow memberi peringatan bila berkas itu ikut berubah.
+
 ---
 
 ## 6. Catatan tentang test

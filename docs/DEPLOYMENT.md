@@ -140,6 +140,10 @@ Bila hosting tidak mengizinkan mengubah document root (mis. terkunci di
 - sesuaikan `$pathsPath` di `public_html/index.php` agar menunjuk ke
   `app/Config/Paths.php` di lokasi baru.
 
+Inilah tata letak yang dipakai deploy otomatis di §14, dan penyesuaian
+`$pathsPath` itu tidak lagi dikerjakan manual: `.cpanel.yml` menuliskan
+`paths.php` di sebelah `index.php`, dan `index.php` membacanya bila ada.
+
 Sebagai lapisan tambahan, letakkan `.htaccess` berikut di root project bila
 folder tersebut ternyata tetap dapat diakses web:
 
@@ -167,6 +171,15 @@ php spark optimize
 ```
 
 Perintah ini mengaktifkan config caching dan locale caching CI4.
+
+> ⚠️ **Jangan menjalankannya di shared hosting.** Selain mengaktifkan cache,
+> `spark optimize` memanggil `composer install --no-dev` (lihat
+> `system/Commands/Utilities/Optimize.php`). Di hosting tanpa Composer perintah
+> itu gagal dan membuat deployment ditandai merah; di hosting yang punya
+> Composer ia justru **menulis ulang `vendor/`** yang di-upload manual.
+> Karena itu deploy otomatis (§14) tidak menjalankannya — cukup menghapus cache
+> lama, dan CI4 membangunnya sendiri pada request pertama karena
+> `app/Config/Optimize.php` sudah menyalakan kedua cache.
 
 Jalankan ulang **setiap kali** file konfigurasi berubah. Bila konfigurasi terasa
 "tidak berubah" setelah edit, bersihkan cache:
@@ -223,17 +236,165 @@ Checklist sebelum menyerahkan aplikasi:
 
 ---
 
-## Update aplikasi berikutnya
+## 14. Deploy otomatis setiap `git push`
+
+Hosting yang dipakai tidak menyediakan SSH maupun terminal web, dan **menolak
+mengeksekusi berkas `.sh`**. Yang tersedia hanya **cPanel Git™ Version Control**
+(membaca `.cpanel.yml`) dan **API token cPanel**. Keduanya cukup untuk membuat
+setiap push ke `main` langsung ter-deploy.
+
+### Cara kerjanya
+
+```
+git push  ──►  GitHub Actions (.github/workflows/deploy.yml)
+                     │
+                     │  1. UAPI VersionControl/update            → cPanel `git pull`
+                     │  2. UAPI VersionControlDeployment/create  → jalankan .cpanel.yml
+                     │  3. polling VersionControlDeployment/retrieve → tunggu hasilnya
+                     ▼
+               .cpanel.yml — tiga task, seluruhnya perintah inline
+                     │
+                     ├── task 1  salin public/ ke document root + tulis paths.php
+                     ├── task 2  build.json, direktori writable/, hapus cache lama
+                     └── task 3  spark migrate --all + vestledger:health → deploy.log
+```
+
+Seluruh perintah ditulis **inline di `.cpanel.yml`**, dengan path absolut untuk
+setiap biner: tidak ada satu pun berkas skrip yang dieksekusi, karena hosting
+memblokirnya. Setiap task adalah satu rantai `&&` dalam satu shell, sebab cPanel
+tidak menjamin variabel tetap hidup antar task.
+
+Kode aplikasi **tidak** disalin ke document root. Yang berada di bawah web hanya
+isi `public/`; `app/`, `vendor/`, `writable/`, dan `.env` tetap tinggal di
+`/home/USER/repositories/vestledger`. Penyambungnya `paths.php` yang ditulis task 1
+di document root dan dibaca `public/index.php` — bentuk konkret dari saran §9,
+tanpa perlu menyunting `index.php` di server. Path repo tidak di-hardcode:
+dideteksi dari `$(pwd)`, karena cPanel menjalankan task dari root repo.
+
+### Tata letak di server
+
+| Lokasi | Isi | Diperbarui oleh |
+|---|---|---|
+| `/home/USER/repositories/vestledger` | seluruh kode, hasil clone dari GitHub | `git pull` yang dijalankan cPanel |
+| `/home/USER/repositories/vestledger/vendor` | dependency Composer | **manual**, lewat File Manager |
+| `/home/USER/repositories/vestledger/.env` | konfigurasi production | **manual**, sekali |
+| `/home/USER/public_html/SUBDOMAIN` | isi `public/` + `paths.php` | `.cpanel.yml` pada setiap deploy |
+
+### Persiapan satu kali — di hosting
+
+1. **Buat subdomain** dengan document root `/home/USER/public_html/SUBDOMAIN`.
+
+2. **Git Version Control → Create → Clone a Repository:**
+
+   | Kolom | Isi |
+   |---|---|
+   | Clone URL | `https://x-access-token:<TOKEN_GITHUB>@github.com/achmadani/VestLedger.git` |
+   | Repository Path | `/home/USER/repositories/vestledger` |
+   | Repository Name | `vestledger` |
+
+   `<TOKEN_GITHUB>` adalah fine-grained personal access token dengan izin
+   **Contents: Read-only** pada repository ini. Token ikut tersimpan di
+   `.git/config` milik server; bila ia kedaluwarsa, `git pull` berhenti bekerja
+   dan deploy gagal pada langkah pertama. Perbarui lewat File Manager
+   (`.git/config`) atau clone ulang.
+
+3. **Unggah `vendor/`** ke `/home/USER/repositories/vestledger/vendor`. Di mesin
+   lokal:
+
+   ```bash
+   composer install --no-dev --optimize-autoloader   # lihat peringatan di §3
+   zip -rq vendor.zip vendor
+   ```
+
+   Unggah `vendor.zip` lewat File Manager, extract di root repo, lalu pulihkan
+   mesin lokal dengan `composer install`.
+
+4. **Buat `.env`** di root repo (salin dari berkas `env`), isi sesuai §4 dan §5.
+
+5. **Buat API token cPanel:** Security → Manage API Tokens → Create, beri nama
+   `github-deploy`, salin tokennya (hanya ditampilkan sekali).
+
+### Persiapan satu kali — di repository
+
+Sunting **satu baris** di [`.cpanel.yml`](../.cpanel.yml), yaitu `DEPLOYPATH` pada
+task pertama:
+
+```yaml
+- 'export DEPLOYPATH=/home/USERNAME/public_html/SUBDOMAIN &&
+```
+
+Itu satu-satunya path yang perlu diisi; sisanya terdeteksi sendiri. Lakukan di
+mesin lokal lalu commit — **jangan** menyuntingnya lewat File Manager, karena
+working tree yang kotor membuat `git pull` milik cPanel gagal.
+
+### Persiapan satu kali — di GitHub
+
+Settings → Secrets and variables → Actions:
+
+| Secret | Contoh isi |
+|---|---|
+| `CPANEL_HOST` | `https://server123.hostingku.com` (tanpa garis miring di ujung) |
+| `CPANEL_USER` | nama pengguna cPanel |
+| `CPANEL_TOKEN` | token dari langkah 5 |
+| `CPANEL_REPO_ROOT` | `/home/USER/repositories/vestledger` |
+
+| Variable (opsional) | Gunanya |
+|---|---|
+| `CPANEL_PORT` | port API cPanel bila bukan `2083` |
+| `SITE_URL` | bila diisi, workflow memeriksa situs membalas 200/302 setelah deploy |
+
+Setelah itu tidak ada lagi langkah manual:
 
 ```bash
-# lokal
-make build && git commit -am "..." && git push
+make release      # naikkan versi, commit, push  →  deploy berjalan sendiri
+make deploy       # ulangi deploy tanpa push baru (butuh gh CLI)
+make deploy-log   # lima jalannya workflow terakhir
+```
 
-# server
+Tombol **Deploy HEAD Commit** di cPanel tetap bekerja dan melakukan hal yang
+persis sama — keduanya menjalankan `.cpanel.yml` yang sama.
+
+### Yang perlu diingat
+
+- **`vendor/` tidak pernah ikut ter-deploy.** Tidak ada Composer di server.
+  Setiap kali `composer.lock` berubah, `vendor/` harus diunggah ulang; workflow
+  memberi peringatan di log jalannya bila berkas itu ikut berubah dalam push.
+- **`spark optimize` sengaja tidak dijalankan** — lihat peringatan di §11.
+- **Migrasi berjalan otomatis** bila PHP CLI ≥ 8.2 tersedia di server. Bila tidak,
+  task 3 tetap berhasil dan alasannya dicatat di log; migrasi lalu dijalankan
+  dari mesin lokal sambil menunjuk `.env` ke database production (§6).
+  Bila migrasi *gagal*, deployment ditandai gagal dan workflow menjadi merah —
+  tetapi berkas publik sudah tersalin, jadi kode dan skema dapat sesaat tidak
+  sinkron.
+- **Log deploy ada di dua tempat:** log jalannya GitHub Actions (sisi pemicu) dan
+  `writable/logs/deploy.log` di server (sisi eksekusi, dibaca lewat File Manager).
+  Yang kedua memuat keluaran migrasi dan health check.
+- **Berkas yang dihapus dari `public/`** tidak ikut terhapus di document root:
+  task 1 menyalin, tidak menyinkronkan, supaya `cgi-bin/` dan `.well-known/`
+  milik hosting tidak ikut hilang. Hapus manual bila memang perlu.
+
+---
+
+## Update aplikasi berikutnya
+
+Sejak §14 aktif, tidak ada langkah manual:
+
+```bash
+make build                 # bila tampilan berubah — aset hasil build ikut di-commit
+make release               # naikkan versi, commit, push → deploy otomatis
+```
+
+Kecuali satu hal: bila `composer.lock` berubah, unggah ulang `vendor/` ke server
+(§14 langkah 3) sebelum atau segera setelah push.
+
+Bila deploy otomatis belum dipasang, urutannya di cPanel adalah *Update from
+Remote* → *Deploy HEAD Commit*, yang menjalankan `.cpanel.yml` yang sama —
+persis langkah yang dahulu dikerjakan lewat SSH:
+
+```bash
 git pull
-composer install --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader   # hanya bila ada shell + Composer
 php spark migrate --all
-bash bin/write-build-info.sh   # catat commit yang ter-deploy, tampil di sidebar
-php spark optimize
-php spark vestledger:health    # pastikan integritas akuntansi masih utuh
+bash bin/write-build-info.sh
+php spark vestledger:health
 ```

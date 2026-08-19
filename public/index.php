@@ -47,9 +47,16 @@ if (getcwd() . DIRECTORY_SEPARATOR !== FCPATH) {
  */
 
 // LOAD OUR PATHS CONFIG FILE
-// This is the line that might need to be changed, depending on your folder structure.
-require FCPATH . '../app/Config/Paths.php';
-// ^^^ Change this line if you move your application folder
+//
+// Pada shared hosting, direktori aplikasi berada di luar document root, dan
+// letaknya berbeda-beda per akun. bin/deploy.sh menuliskan paths.php di
+// sebelah berkas ini berisi path absolut ke app/Config/Paths.php. Di mesin
+// pengembang berkas itu tidak ada, sehingga dipakai path relatif seperti biasa.
+$pathsPath = is_file(FCPATH . 'paths.php')
+    ? require FCPATH . 'paths.php'
+    : FCPATH . '../app/Config/Paths.php';
+
+require $pathsPath;
 
 $paths = new Paths();
 
