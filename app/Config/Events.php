@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Libraries\DeploymentRefresh;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\FrameworkException;
 use CodeIgniter\HotReloader\HotReloader;
@@ -25,6 +26,11 @@ use CodeIgniter\HotReloader\HotReloader;
 
 Events::on('pre_system', static function (): void {
     if (ENVIRONMENT !== 'testing') {
+        // Server produksi tidak punya shell: pembersihan cache dan pencatatan
+        // commit setelah deploy dikerjakan aplikasi sendiri, sekali setiap
+        // kali VERSION berubah. Lihat App\Libraries\DeploymentRefresh.
+        DeploymentRefresh::run();
+
         $value = ini_get('zlib.output_compression');
 
         if (filter_var($value, FILTER_VALIDATE_BOOLEAN) || (int) $value > 0) {

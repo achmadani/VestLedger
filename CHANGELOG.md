@@ -12,6 +12,25 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 > besar**, karena changelog ini baru dibuat pada v0.5.1. Rincian lengkapnya ada
 > di pesan commit masing-masing.
 
+## [Belum dirilis]
+
+### Diperbaiki
+- **Tombol "Deploy HEAD Commit" di cPanel tidak dapat diklik.** Task di
+  `.cpanel.yml` ditulis memakai lipatan YAML multi-baris; bentuk itu sah menurut
+  YAML dan terbaca parser mana pun, tetapi membuat cPanel menonaktifkan tombol
+  Deploy **tanpa pesan kesalahan apa pun**. Setiap task kini satu baris.
+  Gejalanya menyesatkan — tombol disable terlihat seperti masalah izin akun.
+
+### Ditambahkan
+- Workflow memastikan commit hasil pull di server sama dengan commit yang
+  di-push. Pull yang berhenti di commit lama tidak menghasilkan error apa pun,
+  dan situs diam-diam tetap melayani versi lama.
+- `App\Libraries\DeploymentRefresh`: pada request pertama setelah `VERSION`
+  berubah, aplikasi menghapus cache locator/config CI4 yang basi dan menulis
+  `writable/build.json` (commit dibaca dari berkas di `.git`). Jaring pengaman
+  bila deployment tidak sempat berjalan — cache yang basi membuat berkas baru
+  hasil pull tidak terlihat sama sekali.
+
 ## [0.10.0] — 2026-08-19
 
 ### Ditambahkan

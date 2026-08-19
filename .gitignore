@@ -160,6 +160,6 @@ _tmp*
 # app/Database/Seeds/data/idx-stocks.csv, yang ikut di-commit.
 /docs/*.xlsx
 
-# Dihasilkan .cpanel.yml di document root server (berisi path absolut ke
-# app/Config/Paths.php), bukan di repository. Lihat docs/DEPLOYMENT.md §14.
+# Hanya dipakai bila document root terpaksa berada di public_html: berisi path
+# absolut ke app/Config/Paths.php, dibuat di server. Lihat docs/DEPLOYMENT.md §9.
 /public/paths.php

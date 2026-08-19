@@ -1,17 +1,19 @@
 name: Deploy ke hosting
 
 # Setiap push ke main memicu deploy. Hosting tidak menyediakan SSH maupun
-# terminal, jadi pemicunya adalah API cPanel: satu panggilan untuk menarik
-# commit baru (git pull di server), satu lagi untuk menjalankan deployment
-# yang dijelaskan .cpanel.yml.
+# terminal, jadi pemicunya adalah API cPanel — dua panggilan yang menirukan
+# persis dua tombol di Git Version Control:
+#
+#   1. VersionControl/update            → "Update from Remote" (git pull)
+#   2. VersionControlDeployment/create  → "Deploy HEAD Commit" (jalankan .cpanel.yml)
+#
+# Hasil deployment ditunggu, supaya workflow yang hijau berarti berkas benar-benar
+# sudah terpasang.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-# Dua push berdekatan tidak boleh men-deploy bersamaan: keduanya menyentuh
-# document root dan database yang sama. Yang belakangan menunggu, tidak
-# dibatalkan, supaya commit terakhir selalu benar-benar ter-deploy.
 concurrency:
   group: deploy-hosting
   cancel-in-progress: false
@@ -36,12 +38,12 @@ jobs:
           changed="$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" \
                        --jq '.files[].filename' 2>/dev/null || true)"
           if grep -qx 'composer.lock' <<<"$changed"; then
-            echo "::warning::composer.lock berubah. Jalankan 'composer install --no-dev --optimize-autoloader' di lokal, lalu unggah ulang vendor/ ke /home/USERNAME/repositories/vestledger lewat File Manager."
+            echo "::warning::composer.lock berubah. Jalankan 'composer install --no-dev --optimize-autoloader' di lokal, lalu unggah ulang vendor/ ke server lewat File Manager."
           else
             echo "composer.lock tidak berubah — vendor/ di server masih sesuai."
           fi
 
-      - name: Deploy
+      - name: Pull lalu deploy
         env:
           CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
           CPANEL_PORT: ${{ vars.CPANEL_PORT || '2083' }}
@@ -49,6 +51,7 @@ jobs:
           CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
           REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
           BRANCH: ${{ github.ref_name }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
@@ -63,7 +66,6 @@ jobs:
           # membuat URL API menjadi ganda dan ditolak server.
           host="${CPANEL_HOST%/}"
           case "$host" in https://*|http://*) ;; *) host="https://$host" ;; esac
-          base="${host}:${CPANEL_PORT}/execute"
 
           uapi() {
             local endpoint="$1"; shift
@@ -72,12 +74,11 @@ jobs:
             for kv in "$@"; do args+=(--data-urlencode "$kv"); done
             curl --silent --show-error --get --max-time 120 \
                  --header "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
-                 "${base}/${endpoint}" "${args[@]}"
+                 "${host}:${CPANEL_PORT}/execute/${endpoint}" "${args[@]}"
           }
 
           # UAPI membalas HTTP 200 meskipun gagal; status sebenarnya ada di body.
-          # Balasan non-JSON berarti permintaan tidak sampai ke UAPI sama sekali
-          # (host, port, atau token salah) — kasus tersering pada pemasangan awal.
+          # Balasan non-JSON berarti permintaan tidak sampai ke UAPI sama sekali.
           assert_ok() {
             local body="$1" label="$2"
             if ! jq -e . >/dev/null 2>&1 <<<"$body"; then
@@ -91,14 +92,23 @@ jobs:
             fi
           }
 
-          echo "::group::Menarik commit baru di server (branch ${BRANCH})"
+          echo "::group::Update from Remote (git pull di server)"
           body="$(uapi VersionControl/update "repository_root=${REPO_ROOT}" "branch=${BRANCH}")"
           assert_ok "$body" "VersionControl/update"
           jq -r '(.data.last_update // {})
                  | "commit  : \(.identifier // "?")\npesan   : \(.message // "?")\nauthor  : \(.author // "?")\ntanggal : \(.date // "?")"' <<<"$body"
+
+          # Pull yang "berhasil" tetapi tidak membawa commit ini berarti server
+          # menarik dari remote atau branch lain — kegagalan yang paling mudah
+          # luput, karena situs tetap melayani versi lama tanpa satu pun error.
+          got="$(jq -r '.data.last_update.identifier // empty' <<<"$body")"
+          if [ -n "$got" ] && [ "$got" != "$EXPECTED_SHA" ]; then
+            echo "::error::Server berada di commit $got, bukan $EXPECTED_SHA."
+            exit 1
+          fi
           echo "::endgroup::"
 
-          echo "--- Menjalankan deployment (.cpanel.yml) ---"
+          echo "--- Deploy HEAD Commit (menjalankan .cpanel.yml) ---"
           body="$(uapi VersionControlDeployment/create "repository_root=${REPO_ROOT}")"
           assert_ok "$body" "VersionControlDeployment/create"
           task_id="$(jq -r '.data.task_id // .task_id // empty' <<<"$body")"

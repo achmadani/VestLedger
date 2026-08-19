@@ -116,11 +116,11 @@ make release PART=minor      # untuk pekerjaan besar
 menunjuk commit yang benar-benar ter-deploy.
 
 Setiap push ke `main` **men-deploy sendiri** ke hosting: GitHub Actions memanggil
-API cPanel untuk menarik commit baru lalu menjalankan `.cpanel.yml`. Hosting itu
-tidak punya SSH, tidak punya terminal, dan menolak mengeksekusi berkas `.sh`,
-jadi seluruh perintah deploy ditulis inline di `.cpanel.yml`. Rinciannya —
-termasuk tiga hal yang disiapkan manual sekali di server (`vendor/`, `.env`, dan
-token clone GitHub) — ada di
+API cPanel untuk menarik commit baru — sambil memastikan commit di server memang
+commit yang di-push — lalu menjalankan `.cpanel.yml`, yang menyalin `public/` ke
+document root, membersihkan cache, dan menjalankan migrasi. Rinciannya, termasuk
+tiga hal yang disiapkan manual sekali di server (`vendor/`, `.env`, dan token
+clone GitHub), ada di
 [DEPLOYMENT.md §14](DEPLOYMENT.md#14-deploy-otomatis-setiap-git-push).
 
 ```bash
@@ -128,9 +128,11 @@ make deploy       # ulangi deploy tanpa push baru
 make deploy-log   # riwayat jalannya workflow
 ```
 
-Satu hal yang **tidak** otomatis: `vendor/`. Server tidak punya Composer maupun
-shell, jadi setiap kali `composer.lock` berubah, `vendor/` harus diunggah ulang
-lewat File Manager. Workflow memberi peringatan bila berkas itu ikut berubah.
+Dua jebakan yang sudah memakan waktu di sini, keduanya tercatat di §14: **task
+`.cpanel.yml` wajib satu baris** (bila dipecah, cPanel menonaktifkan tombol
+Deploy tanpa pesan apa pun), dan **`vendor/` tidak pernah ikut ter-deploy** —
+unggah ulang lewat File Manager setiap kali `composer.lock` berubah; workflow
+memperingatkan bila itu terjadi.
 
 ---
 
