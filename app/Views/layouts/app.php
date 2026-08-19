@@ -29,6 +29,7 @@ $defaultTheme = investment_config()->defaultTheme;
     </script>
 
     <link rel="stylesheet" href="<?= asset_url('assets/css/app.css') ?>">
+    <link rel="icon" type="image/svg+xml" href="<?= asset_url('favicon.svg') ?>">
     <?= $this->renderSection('pageStyles') ?>
     <script defer src="<?= asset_url('assets/js/alpine.min.js') ?>"></script>
 </head>

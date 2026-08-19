@@ -12,12 +12,8 @@ $user        = auth()->user();
 ?>
 <aside class="min-h-full w-64 bg-base-200 flex flex-col">
     <div class="px-4 py-4 border-b border-base-300">
-        <a href="<?= site_url('dashboard') ?>" class="flex items-center gap-2">
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-content font-bold text-sm">VL</span>
-            <span>
-                <span class="block font-semibold leading-tight">VestLedger</span>
-                <span class="block text-[11px] text-base-content/60 leading-tight">Portfolio &amp; Accounting</span>
-            </span>
+        <a href="<?= site_url('dashboard') ?>" class="flex items-center">
+            <?= component('brand', ['class' => 'w-9 h-9', 'showLabel' => true]) ?>
         </a>
     </div>
 
@@ -36,8 +32,9 @@ $user        = auth()->user();
             }
             ?>
             <div class="mb-3">
-                <p class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-base-content/40">
-                    <?= esc($group['label']) ?>
+                <p class="px-3 mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-base-content/40">
+                    <?= component('icon', ['name' => $group['icon'], 'class' => 'w-3.5 h-3.5']) ?>
+                    <span><?= esc($group['label']) ?></span>
                 </p>
                 <ul class="menu menu-sm p-0 gap-0.5">
                     <?php foreach ($visible as $item): ?>

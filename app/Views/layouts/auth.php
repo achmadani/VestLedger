@@ -25,18 +25,15 @@ $defaultTheme = investment_config()->defaultTheme;
         })();
     </script>
     <link rel="stylesheet" href="<?= asset_url('assets/css/app.css') ?>">
+    <link rel="icon" type="image/svg+xml" href="<?= asset_url('favicon.svg') ?>">
     <?= $this->renderSection('pageStyles') ?>
     <script defer src="<?= asset_url('assets/js/alpine.min.js') ?>"></script>
 </head>
 <body class="min-h-screen bg-base-200 flex items-center justify-center p-4">
 
 <div class="w-full max-w-md">
-    <div class="flex items-center justify-center gap-2 mb-6">
-        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-content font-bold">VL</span>
-        <div>
-            <p class="font-semibold leading-tight"><?= esc($appName) ?></p>
-            <p class="text-[11px] text-base-content/60 leading-tight">Portfolio &amp; Accounting</p>
-        </div>
+    <div class="flex justify-center mb-6">
+        <?= component('brand', ['class' => 'w-10 h-10', 'showLabel' => true]) ?>
     </div>
 
     <?= $this->renderSection('main') ?>
