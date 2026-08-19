@@ -15,6 +15,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\App;
+use Config\Investment;
 use Tests\Support\Concerns\TruncatesDomainTables;
 use Tests\Support\Http\FakeFileCollection;
 use Tests\Support\Http\FakeUploadedFile;
@@ -164,6 +165,46 @@ final class MarketPriceImportUiTest extends CIUnitTestCase
 
         $result->assertOK();
         $result->assertSee('market-prices/import');
+    }
+
+    /**
+     * Halaman harga pasar menautkan langsung ke halaman unduhan IDX, supaya
+     * pengguna tidak perlu mengetik URL-nya setiap hari bursa.
+     */
+    public function testMarketPricePageLinksToIdxDownloadPage(): void
+    {
+        $result = $this->actingAs($this->makeUser('owner'))->get('market-prices');
+
+        $result->assertOK();
+        $result->assertSee('Ringkasan Saham');
+
+        // URL-nya ada di atribut href, yang tidak terjangkau assertSee():
+        // pemeriksaannya membaca teks elemen, bukan atribut.
+        $this->assertStringContainsString(
+            config(Investment::class)->idxDailySummaryUrl,
+            (string) $result->getBody(),
+        );
+    }
+
+    /**
+     * URL-nya parameter: IDX sesekali mengubah tata letak situsnya, dan
+     * mengosongkannya harus menghilangkan keterangan itu, bukan meninggalkan
+     * tautan kosong yang menyesatkan.
+     */
+    public function testIdxLinkDisappearsWhenUrlIsBlank(): void
+    {
+        $config                     = config(Investment::class);
+        $original                   = $config->idxDailySummaryUrl;
+        $config->idxDailySummaryUrl = '';
+
+        try {
+            $result = $this->actingAs($this->makeUser('owner'))->get('market-prices');
+
+            $result->assertOK();
+            $result->assertDontSee('Ringkasan Saham');
+        } finally {
+            $config->idxDailySummaryUrl = $original;
+        }
     }
 
     /**

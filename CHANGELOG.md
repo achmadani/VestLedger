@@ -15,6 +15,16 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Halaman **Harga Pasar** menautkan langsung ke halaman unduhan IDX (Ringkasan
+  Saham), supaya URL-nya tidak perlu diketik setiap hari bursa. Alamatnya
+  parameter di `Config\Investment::$idxDailySummaryUrl` dan dapat ditimpa lewat
+  `.env` tanpa menyentuh kode — IDX sesekali mengubah tata letak situsnya, dan
+  tautan mati pada halaman sesering ini jauh lebih mengganggu daripada satu
+  baris konfigurasi. Dikosongkan berarti keterangannya tidak ditampilkan.
+  Hanya skema `http`/`https` yang dirender sebagai tautan.
+
+
+### Ditambahkan
 - **Impor harga penutupan dari berkas XLSX IDX** (`/market-prices/import`).
   Harga dibaca dari kolom B (Kode Saham) dan kolom K (Penutupan) mulai baris
   kedua, persis susunan berkas ringkasan perdagangan harian IDX. Berkas dibaca

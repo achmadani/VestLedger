@@ -3,6 +3,15 @@
 <?= $this->section('content') ?>
 <?php
 $canManage = auth()->user()?->can('price.manage') ?? false;
+$idxUrl = trim(config(\Config\Investment::class)->idxDailySummaryUrl);
+
+// Hanya http/https yang ditampilkan sebagai tautan. Nilainya memang berasal
+// dari konfigurasi milik pemilik aplikasi, bukan dari pengguna — tetapi skema
+// seperti javascript: tidak akan pernah menjadi alamat unduhan yang sah, dan
+// menolaknya di sini jauh lebih murah daripada memercayai isi .env.
+if (! preg_match('#^https?://#i', $idxUrl)) {
+    $idxUrl = '';
+}
 ?>
 
 <?= component('page_header', [
@@ -13,6 +22,26 @@ $canManage = auth()->user()?->can('price.manage') ?? false;
         ? '<a href="' . site_url('market-prices/import') . '" class="btn btn-sm btn-primary">Impor dari XLSX IDX</a>'
         : null,
 ]) ?>
+
+<?php if ($idxUrl !== ''): ?>
+    <?php
+    // Tautan langsung ke halaman unduhan IDX: berkas ringkasan saham harian
+    // itulah yang diunggah di /market-prices/import, dan mengetik URL-nya
+    // setiap hari bursa jelas menyusahkan. URL-nya parameter di
+    // Config\Investment, sebab IDX sesekali mengubah tata letak situsnya.
+    ?>
+    <div class="alert alert-info mb-4 text-sm no-print">
+        <span>
+            Harga penutupan dapat diunduh di IDX &mdash;
+            <a href="<?= esc($idxUrl) ?>" target="_blank" rel="noopener noreferrer"
+               class="link font-medium">Ringkasan Saham</a>.
+            <?php if ($canManage): ?>
+                Berkas XLSX-nya dapat langsung diunggah lewat
+                <a href="<?= site_url('market-prices/import') ?>" class="link">Impor dari XLSX IDX</a>.
+            <?php endif; ?>
+        </span>
+    </div>
+<?php endif; ?>
 
 <div class="mb-4">
     <form method="get" class="flex items-end gap-2">

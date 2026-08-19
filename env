@@ -86,3 +86,16 @@
 # googleauth.clientId = ''
 # googleauth.clientSecret = ''
 # googleauth.redirectUri = ''
+
+#--------------------------------------------------------------------
+# SUMBER HARGA PASAR (opsional)
+#--------------------------------------------------------------------
+# Halaman IDX tempat berkas ringkasan saham harian diunduh. Tautannya
+# ditampilkan di /market-prices supaya tidak perlu mengetik URL setiap
+# hari bursa, dan berkas XLSX-nya diunggah lewat /market-prices/import.
+#
+# Diisi di sini HANYA bila IDX mengubah alamatnya; bawaannya sudah benar
+# (lihat Config\Investment::$idxDailySummaryUrl). Kosongkan untuk
+# menghilangkan keterangan unduhan sama sekali.
+
+# investment.idxDailySummaryUrl = 'https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-saham'

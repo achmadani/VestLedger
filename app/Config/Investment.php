@@ -81,6 +81,22 @@ class Investment extends BaseConfig
     public int $stampDutyThreshold = 10000000;
 
     /**
+     * Halaman IDX tempat berkas ringkasan saham harian diunduh (§14).
+     *
+     * Berkas itulah yang diunggah di /market-prices/import. URL-nya dijadikan
+     * parameter, bukan ditulis langsung di view, karena IDX pernah dan akan
+     * mengubah tata letak situsnya — dan tautan mati pada halaman yang dipakai
+     * setiap hari bursa jauh lebih mengganggu daripada satu baris konfigurasi.
+     *
+     * Dapat ditimpa lewat .env tanpa menyentuh kode:
+     *
+     *     investment.idxDailySummaryUrl = 'https://...'
+     *
+     * Dikosongkan berarti keterangan unduhan tidak ditampilkan sama sekali.
+     */
+    public string $idxDailySummaryUrl = 'https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-saham';
+
+    /**
      * Tema DaisyUI yang tersedia untuk dipilih pengguna (§30).
      * Menambah tema cukup dengan menambah entri di sini DAN di resources/css/app.css.
      */
