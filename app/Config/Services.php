@@ -27,6 +27,7 @@ use App\Services\MasterData\SecurityService;
 use App\Services\MasterData\StockImportService;
 use App\Services\MasterData\StockService;
 use App\Libraries\XlsxReader;
+use App\Libraries\ZipFileReader;
 use App\Services\Portfolio\MarketPriceImportService;
 use App\Services\Portfolio\MarketPriceService;
 use App\Services\Portfolio\PortfolioService;
@@ -203,7 +204,7 @@ class Services extends BaseService
             new StockModel(),
             new StockPositionModel(),
             static::auditLogger(),
-            new XlsxReader(),
+            new XlsxReader(new ZipFileReader()),
         );
     }
 

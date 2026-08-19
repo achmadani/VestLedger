@@ -6,7 +6,6 @@ namespace App\Libraries;
 
 use RuntimeException;
 use XMLReader;
-use ZipArchive;
 
 /**
  * Pembaca XLSX seadanya: hanya sel bernilai, hanya sheet pertama.
@@ -21,13 +20,16 @@ use ZipArchive;
  * kalkulasi yang sudah tersimpan), format tampilan, tanggal serial Excel,
  * beberapa sheet, sel bergabung, maupun gaya.
  *
- * XLSX adalah ZIP berisi XML, sehingga cukup ext-zip dan XMLReader — keduanya
- * bawaan PHP dan aktif di hosting produksi. XMLReader dipakai supaya berkas
- * dibaca mengalir; sheet IDX berukuran ~800 KB XML dan tidak perlu dimuat utuh
- * ke memori.
+ * Kontainer ZIP-nya dibaca lewat ZipFileReader, yang tidak bergantung pada
+ * `ext-zip` — hosting produksi tidak memilikinya.
  */
 class XlsxReader
 {
+    public function __construct(private ?ZipFileReader $zip = null)
+    {
+        $this->zip ??= new ZipFileReader();
+    }
+
     /**
      * Membaca sheet pertama sebagai baris berindeks huruf kolom.
      *
@@ -39,24 +41,13 @@ class XlsxReader
      */
     public function rows(string $path): iterable
     {
-        if (! is_file($path) || ! is_readable($path)) {
-            throw new RuntimeException('Berkas tidak ditemukan atau tidak dapat dibaca.');
+        $sheet = $this->zip->read($path, $this->firstSheetPath($path));
+
+        if ($sheet === null || $sheet === '') {
+            throw new RuntimeException('XLSX tidak memuat lembar kerja yang dapat dibaca.');
         }
 
-        $zip = new ZipArchive();
-
-        if ($zip->open($path) !== true) {
-            throw new RuntimeException('Berkas bukan XLSX yang sah (tidak dapat dibuka sebagai arsip).');
-        }
-
-        try {
-            $sheetPath = $this->firstSheetPath($zip);
-            $strings   = $this->sharedStrings($zip);
-
-            yield from $this->readSheet($zip, $sheetPath, $strings);
-        } finally {
-            $zip->close();
-        }
+        yield from $this->readSheet($sheet, $this->sharedStrings($path));
     }
 
     /**
@@ -66,31 +57,25 @@ class XlsxReader
      * lazim, tetapi bukan jaminan — berkas hasil ekspor sebagian aplikasi
      * memakai nama lain.
      */
-    private function firstSheetPath(ZipArchive $zip): string
+    private function firstSheetPath(string $path): string
     {
-        $workbook = $zip->getFromName('xl/workbook.xml');
-        $rels     = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        $workbook = $this->zip->read($path, 'xl/workbook.xml');
+        $rels     = $this->zip->read($path, 'xl/_rels/workbook.xml.rels');
 
-        if (is_string($workbook) && is_string($rels)
+        if ($workbook !== null && $rels !== null
             && preg_match('/<sheet[^>]*r:id="([^"]+)"/', $workbook, $sheet) === 1
             && preg_match('/Id="' . preg_quote($sheet[1], '/') . '"[^>]*Target="([^"]+)"/', $rels, $target) === 1
         ) {
-            $path = ltrim($target[1], '/');
+            $found = ltrim($target[1], '/');
 
-            if (! str_starts_with($path, 'xl/')) {
-                $path = 'xl/' . $path;
+            if (! str_starts_with($found, 'xl/')) {
+                $found = 'xl/' . $found;
             }
 
-            if ($zip->locateName($path) !== false) {
-                return $path;
-            }
+            return $found;
         }
 
-        if ($zip->locateName('xl/worksheets/sheet1.xml') !== false) {
-            return 'xl/worksheets/sheet1.xml';
-        }
-
-        throw new RuntimeException('XLSX tidak memuat lembar kerja yang dapat dibaca.');
+        return 'xl/worksheets/sheet1.xml';
     }
 
     /**
@@ -102,11 +87,11 @@ class XlsxReader
      *
      * @return list<string>
      */
-    private function sharedStrings(ZipArchive $zip): array
+    private function sharedStrings(string $path): array
     {
-        $xml = $zip->getFromName('xl/sharedStrings.xml');
+        $xml = $this->zip->read($path, 'xl/sharedStrings.xml');
 
-        if (! is_string($xml) || $xml === '') {
+        if ($xml === null || $xml === '') {
             return [];
         }
 
@@ -122,8 +107,7 @@ class XlsxReader
                 if ($reader->nodeType === XMLReader::ELEMENT && $reader->localName === 'si') {
                     // Satu entri bisa terpecah menjadi beberapa <t> bila sebagian
                     // hurufnya diberi format berbeda; seluruhnya digabung.
-                    $node      = $reader->readInnerXml();
-                    $strings[] = $this->plainText($node);
+                    $strings[] = $this->plainText($reader->readInnerXml());
                 }
             }
         } finally {
@@ -138,58 +122,28 @@ class XlsxReader
      *
      * @return iterable<int, array<string, string>>
      */
-    private function readSheet(ZipArchive $zip, string $sheetPath, array $strings): iterable
+    private function readSheet(string $xml, array $strings): iterable
     {
-        $stream = $zip->getStream($sheetPath);
+        $reader = new XMLReader();
 
-        if ($stream === false) {
+        if (! $reader->XML($xml, 'UTF-8', LIBXML_NONET)) {
             throw new RuntimeException('Lembar kerja XLSX gagal dibaca.');
         }
 
-        // XMLReader tidak dapat membaca stream ZIP secara langsung, sehingga isi
-        // sheet disalin ke berkas sementara lebih dulu. Salinan ini dihapus pada
-        // blok finally, termasuk bila pembacaan dihentikan di tengah jalan.
-        $temp = tempnam(sys_get_temp_dir(), 'xlsx');
-
-        if ($temp === false) {
-            fclose($stream);
-
-            throw new RuntimeException('Gagal menyiapkan berkas sementara untuk membaca XLSX.');
-        }
-
-        $out = fopen($temp, 'wb');
-
-        if ($out === false) {
-            fclose($stream);
-            @unlink($temp);
-
-            throw new RuntimeException('Gagal menyiapkan berkas sementara untuk membaca XLSX.');
-        }
-
-        stream_copy_to_stream($stream, $out);
-        fclose($stream);
-        fclose($out);
-
-        $reader = new XMLReader();
-
         try {
-            if (! $reader->open($temp, 'UTF-8', LIBXML_NONET)) {
-                throw new RuntimeException('Lembar kerja XLSX gagal dibaca.');
-            }
-
             while ($reader->read()) {
                 if ($reader->nodeType !== XMLReader::ELEMENT || $reader->localName !== 'row') {
                     continue;
                 }
 
                 $number = (int) $reader->getAttribute('r');
-                $xml    = $reader->readOuterXml();
+                $outer  = $reader->readOuterXml();
 
-                if ($xml === '') {
+                if ($outer === '') {
                     continue;
                 }
 
-                $cells = $this->parseRow($xml, $strings);
+                $cells = $this->parseRow($outer, $strings);
 
                 if ($cells !== []) {
                     yield $number => $cells;
@@ -197,7 +151,6 @@ class XlsxReader
             }
         } finally {
             $reader->close();
-            @unlink($temp);
         }
     }
 
@@ -250,9 +203,7 @@ class XlsxReader
 
         // t="s" berarti isinya indeks ke tabel string bersama, bukan angka.
         if ($type === 's') {
-            $index = (int) $raw;
-
-            return $strings[$index] ?? '';
+            return $strings[(int) $raw] ?? '';
         }
 
         return $raw;

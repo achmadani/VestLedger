@@ -6,6 +6,26 @@ Production **tidak** memerlukan Node.js runtime, Docker, Redis, supervisor,
 queue worker, maupun websocket server. Aset frontend di-build saat development
 dan hasilnya ikut di-commit, sehingga di server cukup menyajikan file statis.
 
+### Ekstensi PHP
+
+| Ekstensi | Status |
+|---|---|
+| `intl`, `mbstring` | **wajib** — dituntut CodeIgniter 4 |
+| `mysqli` (atau `nd_mysqli`) | **wajib** — driver database |
+| `zlib` | dibutuhkan hanya bila berkas XLSX yang diimpor terkompresi |
+| `zip` | **tidak diperlukan** |
+
+Impor harga pasar (§14) membaca XLSX **tanpa** `ext-zip`: hosting ini tidak
+memilikinya, dan usaha menyalakannya di cPanel berakhir dengan peringatan
+*"pdo_mysql, nd_mysqli skipped as conflicting"*. Karena XLSX pada dasarnya ZIP
+berisi XML, kontainernya dibaca sendiri oleh `App\Libraries\ZipFileReader`.
+Bila `ext-zip` kebetulan ada, ia dipakai; bila tidak, hasilnya sama persis.
+
+> ⚠️ **Jangan mengubah pilihan ekstensi di cPanel hanya demi impor XLSX.**
+> Menyalakan `zip` lewat "Select PHP Version" dapat mematikan driver MySQL yang
+> sedang dipakai — peringatan *skipped as conflicting* itu menyangkut
+> `pdo_mysql` dan `nd_mysqli`, dan aplikasi berhenti jalan tanpa keduanya.
+
 ---
 
 ## 1. Build aset di mesin lokal

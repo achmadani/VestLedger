@@ -25,10 +25,17 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
   Harga **nol** (saham disuspensi) dilewati, bukan disimpan sebagai nol.
   Cakupan dapat dipilih: hanya saham yang dimiliki (bawaan, cukup untuk menilai
   portofolio) atau seluruh saham aktif.
-- `App\Libraries\XlsxReader`: pembaca XLSX seadanya dengan ZipArchive dan
-  XMLReader, keduanya bawaan PHP. §34 menolak PhpSpreadsheet (~5 MB) dan alasan
-  itu masih berlaku; yang dibutuhkan di sini hanya membaca satu sheet berformat
-  tetap. Berkas dibaca mengalir — 963 baris memakai ~16 MB dan ~70 ms.
+- `App\Libraries\XlsxReader`: pembaca XLSX seadanya dengan XMLReader bawaan
+  PHP. §34 menolak PhpSpreadsheet (~5 MB) dan alasan itu masih berlaku; yang
+  dibutuhkan di sini hanya membaca satu sheet berformat tetap. 963 baris
+  memakai ~2 MB dan ~60 ms.
+- `App\Libraries\ZipFileReader`: membaca entri ZIP **tanpa `ext-zip`**.
+  Hosting produksi tidak memilikinya — impor sempat gagal dengan
+  "Class ZipArchive not found" — dan menyalakannya di cPanel berisiko mematikan
+  driver MySQL yang sedang dipakai (*"pdo_mysql, nd_mysqli skipped as
+  conflicting"*). Direktori pusat ZIP dibaca langsung; metode `Stored` (dipakai
+  ekspor IDX) dan `Deflate` (dipakai Excel) keduanya didukung. Bila `ext-zip`
+  kebetulan tersedia, ia tetap dipakai karena lebih cepat.
 
 
 ### Diubah
