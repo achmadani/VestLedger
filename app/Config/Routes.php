@@ -96,6 +96,8 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
 
     $routes->get('market-prices', 'MarketPrices::index', ['filter' => 'permission:portfolio.view']);
     $routes->post('market-prices', 'MarketPrices::store', ['filter' => 'permission:price.manage']);
+    $routes->get('market-prices/import', 'MarketPrices::importForm', ['filter' => 'permission:price.manage']);
+    $routes->post('market-prices/import', 'MarketPrices::import', ['filter' => 'permission:price.manage']);
     $routes->post('market-prices/(:num)/delete', 'MarketPrices::delete/$1', ['filter' => 'permission:price.manage']);
 
     // ---------------------------------------------------------------- Transaksi

@@ -9,6 +9,9 @@ $canManage = auth()->user()?->can('price.manage') ?? false;
     'title'       => 'Harga Pasar',
     'subtitle'    => 'Harga penutupan dimasukkan manual. Harga tidak pernah mengubah book cost historis dan tidak menghasilkan jurnal.',
     'breadcrumbs' => [['label' => 'Portofolio'], ['label' => 'Harga Pasar']],
+    'actions'     => $canManage
+        ? '<a href="' . site_url('market-prices/import') . '" class="btn btn-sm btn-primary">Impor dari XLSX IDX</a>'
+        : null,
 ]) ?>
 
 <div class="mb-4">

@@ -201,6 +201,8 @@ Rinciannya di [ACCOUNTING.md](ACCOUNTING.md). Ringkasnya:
 | Fee broker dihitung sebagai **sisa** dari tarif all-in | Jumlah komponen selalu persis sama dengan konfirmasi broker |
 | Kas negatif **tidak diblokir** | Aplikasi ini untuk pencatatan; transaksi kerap dimasukkan mundur |
 | Posisi tanpa harga pasar **tidak** dianggap unrealized nol | Yang benar adalah "belum diketahui" |
+| Harga nol di berkas IDX dilewati, bukan disimpan | Nol berarti saham disuspensi; menyimpannya membuat nilai pasar anjlok |
+| XLSX dibaca sendiri, bukan dengan PhpSpreadsheet | ~5 MB dependency untuk satu sheet berformat tetap; lihat §34 |
 | Grafik memakai nilai buku, bukan market value | Harga historis belum tentu ada; memakai harga terbaru membuat grafik masa lalu berubah |
 
 ---

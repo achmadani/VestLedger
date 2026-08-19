@@ -26,6 +26,8 @@ use App\Services\Accounting\OpeningBalanceService;
 use App\Services\MasterData\SecurityService;
 use App\Services\MasterData\StockImportService;
 use App\Services\MasterData\StockService;
+use App\Libraries\XlsxReader;
+use App\Services\Portfolio\MarketPriceImportService;
 use App\Services\Portfolio\MarketPriceService;
 use App\Services\Portfolio\PortfolioService;
 use App\Services\Portfolio\PositionService;
@@ -188,6 +190,21 @@ class Services extends BaseService
         }
 
         return new MarketPriceService(new MarketPriceModel(), new StockModel(), static::auditLogger());
+    }
+
+    public static function marketPriceImport(bool $getShared = true): MarketPriceImportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('marketPriceImport');
+        }
+
+        return new MarketPriceImportService(
+            new MarketPriceModel(),
+            new StockModel(),
+            new StockPositionModel(),
+            static::auditLogger(),
+            new XlsxReader(),
+        );
     }
 
     public static function portfolio(bool $getShared = true): PortfolioService

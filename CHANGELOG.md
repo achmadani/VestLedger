@@ -14,6 +14,23 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+### Ditambahkan
+- **Impor harga penutupan dari berkas XLSX IDX** (`/market-prices/import`).
+  Harga dibaca dari kolom B (Kode Saham) dan kolom K (Penutupan) mulai baris
+  kedua, persis susunan berkas ringkasan perdagangan harian IDX. Berkas dibaca
+  langsung lalu **dihapus**; tidak ada yang tersimpan di server.
+  Susunan kolom diperiksa lebih dulu — mengunggah berkas IDX yang keliru akan
+  mengisi seluruh portofolio dengan angka dari kolom yang sama sekali lain,
+  tanpa satu pun pesan error, sehingga impor semacam itu ditolak.
+  Harga **nol** (saham disuspensi) dilewati, bukan disimpan sebagai nol.
+  Cakupan dapat dipilih: hanya saham yang dimiliki (bawaan, cukup untuk menilai
+  portofolio) atau seluruh saham aktif.
+- `App\Libraries\XlsxReader`: pembaca XLSX seadanya dengan ZipArchive dan
+  XMLReader, keduanya bawaan PHP. §34 menolak PhpSpreadsheet (~5 MB) dan alasan
+  itu masih berlaku; yang dibutuhkan di sini hanya membaca satu sheet berformat
+  tetap. Berkas dibaca mengalir — 963 baris memakai ~16 MB dan ~70 ms.
+
+
 ### Diubah
 - **Mekanisme deploy disederhanakan agar identik dengan proyek lain di akun
   hosting yang sama yang sudah terbukti berjalan.** `.cpanel.yml` kini satu task
