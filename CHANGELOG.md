@@ -14,22 +14,37 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+### Diubah
+- **Mekanisme deploy disederhanakan agar identik dengan proyek lain di akun
+  hosting yang sama yang sudah terbukti berjalan.** `.cpanel.yml` kini satu task
+  satu baris yang hanya menyalin `public/` ke document root subdomain lalu
+  menaruh salinan `index.php` yang menunjuk balik ke root repo — tidak ada lagi
+  pemanggilan `spark` di dalamnya. Front controller document root memakai berkas
+  di-commit `deploy/index-docroot.php` dengan placeholder `__APPROOT__` yang
+  diganti `sed` saat deploy, menggantikan trik `paths.php` yang dibuat runtime.
+  `public/index.php` dikembalikan ke bentuk standar CI4.
+
 ### Diperbaiki
-- **Tombol "Deploy HEAD Commit" di cPanel tidak dapat diklik.** Task di
-  `.cpanel.yml` ditulis memakai lipatan YAML multi-baris; bentuk itu sah menurut
-  YAML dan terbaca parser mana pun, tetapi membuat cPanel menonaktifkan tombol
-  Deploy **tanpa pesan kesalahan apa pun**. Setiap task kini satu baris.
-  Gejalanya menyesatkan — tombol disable terlihat seperti masalah izin akun.
+- **Tombol "Deploy HEAD Commit" di cPanel tidak dapat diklik.** Dua penyebab,
+  keduanya tanpa pesan yang menyebut sumbernya: (a) task `.cpanel.yml` yang
+  dipecah menjadi beberapa baris membuat cPanel menonaktifkan tombol Deploy — kini
+  satu baris; (b) working tree server yang kotor memblokir deploy — paling sering
+  karena document root diarahkan ke `public/` di dalam repo, sehingga cPanel
+  menulis handler PHP ke `public/.htaccess` yang di-commit. Document root kini
+  wajib terpisah di `public_html`. Cara memulihkan tree yang kotor (clone ulang)
+  didokumentasikan di DEPLOYMENT.md §14.
 
 ### Ditambahkan
+- `.gitignore` mengabaikan `*.zip`, `*.tar.gz`, `__MACOSX/`, `error_log`, dan
+  `.user.ini` di akar proyek — berkas yang tertinggal atau dibuat sendiri oleh
+  cPanel/PHP di dalam folder repo, dan membuat working tree kotor.
 - Workflow memastikan commit hasil pull di server sama dengan commit yang
   di-push. Pull yang berhenti di commit lama tidak menghasilkan error apa pun,
   dan situs diam-diam tetap melayani versi lama.
 - `App\Libraries\DeploymentRefresh`: pada request pertama setelah `VERSION`
   berubah, aplikasi menghapus cache locator/config CI4 yang basi dan menulis
-  `writable/build.json` (commit dibaca dari berkas di `.git`). Jaring pengaman
-  bila deployment tidak sempat berjalan — cache yang basi membuat berkas baru
-  hasil pull tidak terlihat sama sekali.
+  `writable/build.json` (commit dibaca dari berkas di `.git`). Tanpa shell,
+  inilah yang mencegah berkas baru hasil pull tak terlihat karena cache lama.
 
 ## [0.10.0] — 2026-08-19
 

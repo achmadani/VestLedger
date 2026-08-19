@@ -160,6 +160,18 @@ _tmp*
 # app/Database/Seeds/data/idx-stocks.csv, yang ikut di-commit.
 /docs/*.xlsx
 
-# Hanya dipakai bila document root terpaksa berada di public_html: berisi path
-# absolut ke app/Config/Paths.php, dibuat di server. Lihat docs/DEPLOYMENT.md §9.
-/public/paths.php
+
+# Sisa unggahan lewat File Manager di server: arsip vendor dan direktori
+# metadata yang ikut terbawa bila zip dibuat di macOS. Keduanya tidak berbahaya,
+# tetapi membuat working tree kotor - dan cPanel MENOLAK melakukan pull maupun
+# deploy pada working tree yang kotor, dengan pesan yang tidak menyebut berkas
+# mana penyebabnya. Lihat docs/DEPLOYMENT.md §14.
+/__MACOSX/
+/*.zip
+/*.tar.gz
+/*.tgz
+
+# Berkas yang dibuat sendiri oleh cPanel/PHP di dalam folder yang dilayaninya.
+# Sama seperti di atas: tidak berbahaya, tetapi mengotori working tree.
+error_log
+.user.ini

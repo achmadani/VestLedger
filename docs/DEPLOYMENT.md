@@ -137,14 +137,14 @@ Bila hosting tidak mengizinkan mengubah document root (mis. terkunci di
 - letakkan isi `public/` di `public_html/`,
 - letakkan sisa project di folder sejajar yang **tidak** dapat diakses web
   (mis. `~/vestledger-app/`),
-- sesuaikan `$pathsPath` di `public_html/index.php` agar menunjuk ke
-  `app/Config/Paths.php` di lokasi baru.
+- gunakan salinan `index.php` yang me-`require` `app/Config/Paths.php` lewat path
+  absolut ke lokasi baru.
 
-Penyesuaian `$pathsPath` itu tidak perlu dikerjakan dengan menyunting
-`index.php`: bila ada berkas `paths.php` di sebelahnya, `index.php` membaca path
-aplikasi dari sana. Tata letak yang dipakai sekarang (§14) bahkan tidak
-memerlukannya — document root langsung menunjuk `public/` di dalam folder
-repository, sehingga path relatif bawaan sudah benar.
+Inilah persis yang dilakukan deploy otomatis (§14): berkas
+[`deploy/index-docroot.php`](../deploy/index-docroot.php) adalah salinan
+`index.php` dengan path absolut, dan `.cpanel.yml` menaruhnya di document root
+lalu mengisi path repo yang sebenarnya. Document root subdomain **terpisah** dari
+repo, jadi `app/`, `vendor/`, dan `.env` tetap di luar web root.
 
 Sebagai lapisan tambahan, letakkan `.htaccess` berikut di root project bila
 folder tersebut ternyata tetap dapat diakses web:
@@ -256,26 +256,36 @@ git push  ──►  GitHub Actions (.github/workflows/deploy.yml)
                      │  2. VersionControlDeployment/create  = tombol "Deploy HEAD Commit"
                      │  3. polling .../retrieve             → tunggu sampai selesai
                      ▼
-               .cpanel.yml — tiga task, seluruhnya perintah inline
+               .cpanel.yml — SATU task, satu baris
                      │
-                     ├── task 1  salin public/ ke document root + tulis paths.php
-                     ├── task 2  siapkan writable/, hapus cache CI4 yang basi
-                     └── task 3  spark migrate --all + vestledger:health → deploy.log
+                     ├── cp -Rf public/. → document root subdomain
+                     └── cp deploy/index-docroot.php → document root/index.php,
+                         lalu sed mengganti __APPROOT__ dengan path repo ($(pwd))
 ```
 
 Kode aplikasi **tidak** disalin ke document root. Yang berada di bawah web hanya
 isi `public/`; `app/`, `vendor/`, `writable/`, dan `.env` tetap tinggal di
-`/home/USER/repositories/vestledger`. Penyambungnya `paths.php` yang ditulis
-task 1 dan dibaca `public/index.php` — bentuk konkret dari saran §9, tanpa perlu
-menyunting `index.php` di server. Path repo tidak di-hardcode: dideteksi dari
-`$(pwd)`, karena cPanel menjalankan task dari root repo.
+`/home/USER/repositories/vestledger`. Penyambungnya `index.php` di document root:
+ia bukan `public/index.php` biasa, melainkan salinan
+[`deploy/index-docroot.php`](../deploy/index-docroot.php) yang me-`require`
+`app/Config/Paths.php` lewat **path absolut**. Path itu tidak di-hardcode —
+placeholder `__APPROOT__` diganti `sed` dengan `$(pwd)` saat deploy, karena
+cPanel menjalankan task dari root repo.
 
-> ⚠️ **Setiap task wajib ditulis dalam satu baris.** Task yang dipecah menjadi
-> beberapa baris — bentuk yang sah menurut YAML, dan terbaca oleh parser mana pun
-> — membuat cPanel **menonaktifkan tombol Deploy tanpa pesan kesalahan apa pun**.
-> Gejalanya menyesatkan: tombol disable terlihat seperti masalah izin akun, dan
-> tooltipnya hanya kalimat generik "Run the configured tasks to deploy your
-> repository". Ini sudah memakan waktu di repo ini.
+Mekanisme ini **identik** dengan proyek lain di akun hosting yang sama yang sudah
+terbukti berjalan; sengaja dibuat sesederhana mungkin.
+
+> ⚠️ **Task wajib ditulis dalam satu baris.** Task yang dipecah menjadi beberapa
+> baris — bentuk yang sah menurut YAML, dan terbaca oleh parser mana pun —
+> membuat cPanel **menonaktifkan tombol Deploy tanpa pesan kesalahan apa pun**.
+> Gejalanya menyesatkan: tombol disable terlihat seperti masalah izin akun.
+
+> ⚠️ **Document root subdomain HARUS terpisah dari repo.** Arahkan ke
+> `/home/USER/public_html/SUBDOMAIN`, **jangan** ke folder `public/` di dalam
+> repo. Bila diarahkan ke dalam repo, cPanel menulis handler PHP ke
+> `public/.htaccess` (berkas yang di-commit) begitu versi PHP disetel di MultiPHP
+> Manager — satu perubahan itu membuat working tree kotor dan memblokir seluruh
+> deploy berikutnya, tanpa pernah terlihat sebagai berkas asing.
 
 ### Tata letak di server
 
@@ -284,7 +294,7 @@ menyunting `index.php` di server. Path repo tidak di-hardcode: dideteksi dari
 | `/home/USER/repositories/vestledger` | seluruh kode, hasil clone dari GitHub | `git pull` yang dijalankan cPanel |
 | `/home/USER/repositories/vestledger/vendor` | dependency Composer | **manual**, lewat File Manager |
 | `/home/USER/repositories/vestledger/.env` | konfigurasi production | **manual**, sekali |
-| `/home/USER/public_html/SUBDOMAIN` | isi `public/` + `paths.php` | `.cpanel.yml` pada setiap deploy |
+| `/home/USER/public_html/SUBDOMAIN` | isi `public/` + `index.php` docroot | `.cpanel.yml` pada setiap deploy |
 
 ### Persiapan satu kali — di hosting
 
@@ -348,6 +358,49 @@ make deploy       # ulangi deploy tanpa push baru
 make deploy-log   # lima jalannya workflow terakhir
 ```
 
+### Bila tombol "Deploy HEAD Commit" tidak dapat diklik
+
+cPanel menampilkan dua syarat, tanpa memberi tahu yang mana yang tidak
+terpenuhi:
+
+> 1. A valid `.cpanel.yml` file exists.
+> 2. No uncommitted changes exist on the checked-out branch.
+
+**Syarat 1** dapat diperiksa dari mesin lokal, memakai parser yang sama dengan
+cPanel (Perl):
+
+```bash
+perl -MYAML::Syck -e 'my $d = YAML::Syck::LoadFile(".cpanel.yml"); printf "%d task\n", scalar @{$d->{deployment}{tasks}};'
+```
+
+Selain harus terbaca, ingat aturan satu-baris di atas.
+
+**Syarat 2** adalah penyebab yang jauh lebih sering, dan pesannya tidak menyebut
+berkas mana. Yang membuat working tree di server menjadi kotor, berurutan dari
+yang paling sering:
+
+- **arsip sisa extract** (`vendor.zip` dan kawan-kawan) serta `__MACOSX/` yang
+  ikut terbawa bila zip dibuat di macOS. Keduanya kini masuk `.gitignore`,
+  jadi lakukan pull sekali agar aturan itu berlaku di server;
+- **perubahan mode berkas.** Menjalankan "Fix Permissions" atau chmod massal di
+  File Manager mengubah lima berkas yang di-commit sebagai executable menjadi
+  644, dan git membaca itu sebagai perubahan:
+
+  ```
+  spark    builds    .githooks/pre-push    bin/bump-version.sh    bin/write-build-info.sh
+  ```
+
+  Kembalikan ke **0755** lewat File Manager;
+- **menyunting berkas yang di-commit lewat File Manager** — termasuk
+  `.cpanel.yml` sendiri. Ini yang paling merepotkan: tanpa shell tidak ada
+  `git checkout` untuk memulihkannya. Bila terjadi, cara terbersih adalah
+  menghapus repository di Git Version Control lalu clone ulang, kemudian
+  mengunggah kembali `vendor/` dan `.env`. Karena itu **seluruh penyesuaian
+  dilakukan di mesin lokal lalu di-commit**, tidak pernah langsung di server.
+
+`.env` dan `vendor/` sendiri aman disimpan di dalam folder repository: keduanya
+diabaikan git, sehingga tidak pernah membuat working tree kotor.
+
 ### Yang perlu diingat
 
 - **Workflow memeriksa commit hasil pull sama dengan commit yang di-push.** Pull
@@ -356,21 +409,37 @@ make deploy-log   # lima jalannya workflow terakhir
 - **`vendor/` tidak pernah ikut ter-deploy.** Tidak ada Composer di server.
   Setiap kali `composer.lock` berubah, unggah ulang `vendor/`; workflow memberi
   peringatan di log jalannya bila berkas itu ikut berubah dalam push.
-- **Migrasi berjalan otomatis** pada task 3, selama PHP CLI ≥ 8.2 ada di server.
-  Bila tidak ada, task tetap berhasil dan alasannya dicatat di log — migrasi lalu
-  perlu dijalankan dengan salah satu cara di §6. Bila migrasi *gagal*, deployment
-  ditandai gagal dan workflow merah, tetapi berkas publik sudah tersalin.
-- **`spark optimize` tidak dijalankan** — lihat peringatan di §11. Cache yang basi
-  dihapus task 2, dan sebagai jaring pengaman aplikasi juga menghapusnya sendiri
-  pada request pertama setelah `VERSION` berubah
+- **Migrasi TIDAK berjalan otomatis.** `.cpanel.yml` sengaja tidak menjalankan
+  `spark` — hanya menyalin berkas — agar sesederhana dan seandal mungkin. Migrasi
+  skema dijalankan terpisah: taruh SQL-nya di `deploy/*.sql` dan impor lewat
+  phpMyAdmin, atau jalankan `spark migrate --all` dari mesin lokal dengan `.env`
+  menunjuk database production via Remote MySQL (§6). **Deploy yang membawa
+  migrasi baru harus disertai salah satu langkah itu.**
+- **`spark optimize` tidak dijalankan** — lihat peringatan di §11. Cache CI4 yang
+  basi dihapus aplikasi sendiri pada request pertama setelah `VERSION` berubah
   ([`app/Libraries/DeploymentRefresh.php`](../app/Libraries/DeploymentRefresh.php)),
-  sekaligus menulis `writable/build.json`.
-- **Log deploy ada di dua tempat:** log jalannya GitHub Actions (sisi pemicu) dan
-  `writable/logs/deploy.log` di server (sisi eksekusi, dibaca lewat File Manager).
-  Yang kedua memuat keluaran migrasi dan health check.
+  sekaligus menulis `writable/build.json`. Selama `VERSION` naik setiap push
+  (dijaga hook pre-push), cache tidak pernah menampilkan kode lama.
 - **Berkas yang dihapus dari `public/`** tidak ikut terhapus di document root:
-  task 1 menyalin, tidak menyinkronkan, supaya `cgi-bin/` dan `.well-known/`
+  deploy menyalin, tidak menyinkronkan, supaya `cgi-bin/` dan `.well-known/`
   milik hosting tidak ikut hilang. Hapus manual bila memang perlu.
+
+### Bila working tree di server terlanjur kotor
+
+Tanpa shell, tidak ada `git checkout` untuk memulihkan berkas yang berubah di
+server, dan menyuntingnya lewat File Manager hanya menambah perubahan. Bila
+tombol Deploy tetap disable padahal `.cpanel.yml` valid dan tidak ada arsip sisa,
+cara terbersih adalah **memulai ulang clone**:
+
+1. Git Version Control → **Manage** repo → **Remove** (ini hanya menghapus folder
+   repo, bukan database maupun document root subdomain).
+2. **Clone** ulang dari URL yang sama (§14 langkah 2).
+3. Unggah kembali `vendor/` dan `.env` (§14 langkah 3–4).
+4. Pastikan document root subdomain menunjuk `public_html/SUBDOMAIN` yang
+   **terpisah** (lihat peringatan di atas), bukan ke dalam repo.
+5. **Update from Remote** → **Deploy HEAD Commit**.
+
+Clone yang segar selalu bersih, sehingga Deploy langsung menyala.
 
 ---
 

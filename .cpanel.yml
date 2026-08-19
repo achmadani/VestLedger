@@ -1,54 +1,34 @@
 ---
-# Deploy config untuk cPanel "Git™ Version Control".
+# Deploy config untuk cPanel "Git™ Version Control" (Biznet, TANPA SSH).
 #
-# Dijalankan oleh tombol "Deploy HEAD Commit", dan oleh GitHub Actions lewat
-# UAPI VersionControlDeployment/create (lihat .github/workflows/deploy.yml),
-# sehingga setiap push ke main ter-deploy tanpa membuka cPanel.
+# Prasyarat (disiapkan manual sekali di server, TIDAK ditangani berkas ini):
+#   - vendor/  → diunggah ke dalam folder repo hasil clone
+#   - .env     → dibuat/diisi di root folder repo (CI_ENVIRONMENT=production,
+#                app.baseURL, kredensial DB, encryption.key)
+#   - Database → dibuat & diimpor lewat phpMyAdmin (skema: lihat deploy/*.sql)
 #
-# Prasyarat (disiapkan manual sekali lewat File Manager, TIDAK ditangani berkas ini):
-#   - vendor/  → hasil `composer install --no-dev --optimize-autoloader`, diunggah
-#                ke dalam folder repo hasil clone
-#   - .env     → dibuat di root folder repo (CI_ENVIRONMENT=production, app.baseURL,
-#                kredensial DB, encryption.key)
-#   - Database → dibuat lewat cPanel; skemanya diisi migrasi pada task 3
-#
-# Yang dikerjakan setiap deploy:
-#   1. Menyalin ISI folder public/ ke document root subdomain, lalu menulis
-#      paths.php di sana. Berkas itu dibaca public/index.php dan berisi path
-#      absolut ke app/Config/Paths.php, sehingga app/, vendor/, dan .env TETAP
-#      di luar web root tanpa perlu menyunting index.php di server.
-#   2. Menyiapkan writable/ dan menghapus cache CI4 yang basi.
-#   3. Menjalankan migrasi dan pemeriksaan kesehatan bila PHP CLI tersedia.
+# Yang dilakukan berkas ini setiap kali "Deploy HEAD Commit" ditekan
+# (atau dipanggil GitHub Actions lewat API — lihat .github/workflows/deploy.yml):
+#   1. Menyalin ISI folder public/ (termasuk .htaccess, assets, favicon) ke
+#      document root subdomain.
+#   2. Menimpa index.php di document root dengan versi yang menunjuk balik ke root
+#      repo (deploy/index-docroot.php), sehingga app/, vendor/, dan .env TETAP di
+#      luar web root.
 #
 # Catatan penting:
-#   - SATU-satunya baris yang perlu disesuaikan adalah DEPLOYPATH di task pertama.
-#     Path repo TIDAK di-hardcode — dideteksi otomatis via $(pwd), karena cPanel
-#     menjalankan task dari root folder repo.
-#   - Setiap task WAJIB ditulis dalam SATU baris. Task yang dipecah menjadi
-#     beberapa baris (lipatan YAML) membuat cPanel menonaktifkan tombol Deploy
-#     tanpa pesan kesalahan apa pun — ini sudah terjadi di repo ini.
-#   - Satu rantai '&&' per task, dalam satu shell: cPanel tidak menjamin variabel
-#     tetap hidup antar task.
-#   - TIDAK ada berkas .sh yang dieksekusi: hosting memblokirnya. Semua perintah
-#     inline, dengan path absolut untuk setiap biner.
-#   - rsync/composer sengaja TIDAK dipakai (tidak tersedia di shared hosting).
-#   - `spark optimize` sengaja TIDAK dijalankan: ia memanggil
-#     `composer install --no-dev`, yang di sini gagal — atau lebih buruk, menulis
-#     ulang vendor/ yang diunggah manual. Lihat docs/DEPLOYMENT.md §11.
-#   - Berkas yang dihapus dari public/ tidak ikut terhapus di document root: ini
-#     menyalin, bukan menyinkronkan, supaya cgi-bin/ dan .well-known/ milik
-#     hosting tidak ikut hilang. Hapus manual bila memang perlu.
+#   - SATU-satunya path yang perlu disesuaikan adalah DEPLOYPATH (document root
+#     subdomain) di bawah. Path repo TIDAK di-hardcode — dideteksi otomatis via
+#     $(pwd), karena cPanel menjalankan task dari root folder repo.
+#   - Document root subdomain HARUS terpisah dari repo (di public_html), BUKAN
+#     diarahkan ke folder public/ di dalam repo. Bila diarahkan ke dalam repo,
+#     cPanel menulis handler PHP ke public/.htaccess yang di-commit, membuat
+#     working tree kotor dan memblokir deploy berikutnya.
+#   - Ditulis sebagai SATU task berantai (&&) supaya $DEPLOYPATH dan $(pwd) tetap
+#     valid dalam satu shell (cPanel tidak menjamin variabel lintas-task).
+#   - rsync/composer/spark sengaja TIDAK dipakai (sering tidak tersedia / gagal di
+#     shared hosting). Migrasi skema dijalankan manual lewat deploy/*.sql di
+#     phpMyAdmin, atau `spark migrate` dari mesin lokal via Remote MySQL (§6).
 
 deployment:
   tasks:
-    # 1. Isi public/ ke document root + jembatan ke direktori aplikasi.
-    - 'export DEPLOYPATH=/home/sinaubiz/public_html/jurnal.sinau.biz.id && export APPPATH="$(pwd)" && /bin/mkdir -p "$DEPLOYPATH" && /bin/cp -R "$APPPATH/public/." "$DEPLOYPATH/" && /bin/echo "<?php return \"$APPPATH/app/Config/Paths.php\";" > "$DEPLOYPATH/paths.php" && /bin/echo "[deploy] public/ -> $DEPLOYPATH (app: $APPPATH)"'
-
-    # 2. Direktori writable/ dan pembersihan cache. Cache locator dihapus SEBELUM
-    #    migrasi: selama ia ada, migrasi yang baru ditambahkan tidak terlihat oleh
-    #    spark sama sekali, dan `migrate` melapor sukses tanpa menjalankan apa pun.
-    - 'export APPPATH="$(pwd)" && export COMMIT="$(/usr/bin/git rev-parse HEAD 2>/dev/null || /usr/local/cpanel/3rdparty/bin/git rev-parse HEAD 2>/dev/null)" && /bin/mkdir -p "$APPPATH/writable/cache" "$APPPATH/writable/logs" "$APPPATH/writable/session" "$APPPATH/writable/uploads" "$APPPATH/writable/debugbar" && /bin/rm -f "$APPPATH/writable/cache/FileLocatorCache" "$APPPATH/writable/cache/FactoriesCache_config" && /bin/echo "{\"commit\": \"$COMMIT\", \"built_at\": \"$(/bin/date +%Y-%m-%d\ %H:%M:%S)\"}" > "$APPPATH/writable/build.json" && /bin/chmod -R u+rwX "$APPPATH/writable" && /bin/echo "[deploy] commit $COMMIT"'
-
-    # 3. Migrasi dan pemeriksaan kesehatan. Keluarannya masuk ke
-    #    writable/logs/deploy.log agar dapat dibaca lewat File Manager.
-    - 'export APPPATH="$(pwd)" && export LOG="$APPPATH/writable/logs/deploy.log" && /bin/echo "===== $(/bin/date +%Y-%m-%d\ %H:%M:%S) deploy $(/bin/cat VERSION 2>/dev/null) =====" >> "$LOG" && PHPBIN="" && for p in /usr/local/bin/php /opt/cpanel/ea-php83/root/usr/bin/php /opt/cpanel/ea-php82/root/usr/bin/php /usr/bin/php; do if [ -x "$p" ] && "$p" -r "exit(PHP_VERSION_ID >= 80200 ? 0 : 1);" > /dev/null 2>&1; then PHPBIN="$p"; break; fi; done && if [ -z "$PHPBIN" ]; then /bin/echo "PHP CLI >= 8.2 tidak ditemukan; migrasi dilewati" >> "$LOG"; elif [ ! -f "$APPPATH/vendor/autoload.php" ] || [ ! -f "$APPPATH/.env" ]; then /bin/echo "vendor/ atau .env belum ada; migrasi dilewati" >> "$LOG"; else /bin/echo "php: $PHPBIN" >> "$LOG"; "$PHPBIN" spark migrate --all >> "$LOG" 2>&1 && { "$PHPBIN" spark vestledger:health >> "$LOG" 2>&1 || true; }; fi && /bin/echo "[deploy] selesai — rincian di writable/logs/deploy.log"'
+    - 'export DEPLOYPATH=/home/sinaubiz/public_html/jurnal.sinau.biz.id && /bin/mkdir -p "$DEPLOYPATH" && /bin/cp -Rf public/. "$DEPLOYPATH"/ && /bin/cp -f deploy/index-docroot.php "$DEPLOYPATH"/index.php && /bin/sed -i "s#__APPROOT__#$(pwd)#g" "$DEPLOYPATH"/index.php'
