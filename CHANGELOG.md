@@ -12,7 +12,7 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 > besar**, karena changelog ini baru dibuat pada v0.5.1. Rincian lengkapnya ada
 > di pesan commit masing-masing.
 
-## [Belum dirilis]
+## [0.10.0] — 2026-08-19
 
 ### Ditambahkan
 - **Deploy otomatis setiap push ke `main`.** GitHub Actions memanggil API cPanel
