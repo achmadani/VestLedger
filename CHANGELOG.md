@@ -14,6 +14,19 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+### Diperbaiki
+- **Aplikasi mati total setelah menambahkan satu properti Config.** Cache config
+  CI4 memuat objek lewat `BaseConfig::__set_state()`, yang menyalin properti satu
+  per satu; properti yang belum ada di cache lama bernilai `null` dan ditolak
+  PHP: *"Cannot assign null to property ... of type string"*. Kegagalannya
+  terjadi di dalam `Boot`, **sebelum** event `pre_system`, sehingga
+  `DeploymentRefresh` tidak pernah sempat membersihkan cache basi — dan server
+  produksi tidak punya shell untuk menghapusnya. `configCacheEnabled` kini
+  `false`, dijaga `tests/unit/OptimizeConfigTest.php`. Biayanya ~1,4 ms per
+  request (11,4 ms dengan cache, 12,8 ms tanpa). Cache locator tetap menyala:
+  kebasiannya tidak mematikan boot, sehingga masih dapat dipulihkan sendiri.
+
+
 ### Ditambahkan
 - Halaman **Harga Pasar** menautkan langsung ke halaman unduhan IDX (Ringkasan
   Saham), supaya URL-nya tidak perlu diketik setiap hari bursa. Alamatnya

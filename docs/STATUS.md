@@ -93,6 +93,21 @@ atribut `@click`/`@input`; uji perilaku interaktif lewat browser.
 
 Titik akhir JSON juga dibungkus kerangka HTML oleh test harness.
 
+### Config caching mematikan aplikasi saat ada properti Config baru
+
+Cache config CI4 memuat objek lewat `BaseConfig::__set_state()`, yang menyalin
+properti satu per satu dari data yang tersimpan. Menambahkan **satu properti
+baru** ke kelas Config membuat kunci itu tidak ada di cache lama:
+
+```
+TypeError: Cannot assign null to property Config\Investment::$idxDailySummaryUrl of type string
+```
+
+Seluruh request mati, dan kegagalannya terjadi di dalam `Boot` — **sebelum**
+`pre_system` — sehingga `DeploymentRefresh` tidak sempat membersihkan apa pun.
+Karena itu `configCacheEnabled` kini **`false`**, dijaga test. Rinciannya di
+[DEPLOYMENT.md §11](DEPLOYMENT.md#11-cache--optimasi).
+
 ### Class Tailwind baru memerlukan build ulang
 
 Utility yang belum pernah dipakai di `app/Views` tidak ada di bundle CSS sampai

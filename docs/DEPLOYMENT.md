@@ -188,24 +188,61 @@ bila document root sudah menunjuk ke `public/`.
 
 ## 11. Cache & optimasi
 
-```bash
-php spark optimize
+CI4 menyediakan dua cache yang dapat disetel di `app/Config/Optimize.php`.
+Di aplikasi ini keduanya **tidak** disetel sama:
+
+| Cache | Setelan | Alasan |
+|---|---|---|
+| `configCacheEnabled` | **`false`** | menyalakannya pernah mematikan produksi; lihat di bawah |
+| `locatorCacheEnabled` | `true` | aman, karena kebasiannya dapat dipulihkan sendiri |
+
+### Mengapa config caching dimatikan
+
+Cache config menyimpan objek Config lewat `var_export`, dan memuatnya kembali
+lewat `BaseConfig::__set_state()` yang menyalin properti satu per satu:
+
+```php
+$obj->{$property} = $array[$property];
 ```
 
-Perintah ini mengaktifkan config caching dan locale caching CI4.
+Begitu sebuah **properti baru** ditambahkan ke kelas Config, kunci itu tidak ada
+di cache lama. Nilainya menjadi `null`, dan PHP menolaknya:
+
+```
+TypeError: Cannot assign null to property Config\Investment::$idxDailySummaryUrl of type string
+SYSTEMPATH/Config/BaseConfig.php at line 82
+```
+
+Seluruh aplikasi mati — bukan satu halaman, melainkan setiap request.
+
+Yang membuatnya berbahaya di hosting ini: kegagalan terjadi **di dalam `Boot`,
+sebelum event `pre_system`**, sehingga `App\Libraries\DeploymentRefresh` — yang
+seharusnya menghapus cache basi setiap kali `VERSION` berubah — tidak pernah
+sempat berjalan. Server tidak punya shell maupun terminal, jadi satu-satunya
+pemulihan adalah menghapus `writable/cache/FactoriesCache_config` lewat File
+Manager.
+
+Harganya murah: pengukuran pada halaman login menunjukkan selisih **~1,4 ms**
+per request (11,4 ms dengan cache, 12,8 ms tanpa). Situs yang mati jauh lebih
+mahal. Setelan ini dijaga oleh `tests/unit/OptimizeConfigTest.php`.
+
+> **Bila error itu telanjur muncul di server:** hapus
+> `writable/cache/FactoriesCache_config` lewat File Manager, dan situs langsung
+> hidup kembali. Setelah versi ini ter-deploy, berkas itu tidak lagi dibaca
+> sehingga masalahnya tidak dapat terulang.
+
+### `spark optimize`
 
 > ⚠️ **Jangan menjalankannya di shared hosting.** Selain mengaktifkan cache,
 > `spark optimize` memanggil `composer install --no-dev` (lihat
 > `system/Commands/Utilities/Optimize.php`). Di hosting tanpa Composer perintah
 > itu gagal dan membuat deployment ditandai merah; di hosting yang punya
 > Composer ia justru **menulis ulang `vendor/`** yang di-upload manual.
-> Karena itu deploy otomatis (§14) tidak menjalankannya. Cache lama dihapus
-> aplikasi sendiri setiap kali `VERSION` berubah
-> (`app/Libraries/DeploymentRefresh.php`), dan CI4 membangunnya kembali pada
-> request berikutnya karena `app/Config/Optimize.php` menyalakan kedua cache.
+> Karena itu deploy otomatis (§14) tidak menjalankannya.
 
-Jalankan ulang **setiap kali** file konfigurasi berubah. Bila konfigurasi terasa
-"tidak berubah" setelah edit, bersihkan cache:
+Cache locator yang basi dihapus aplikasi sendiri setiap kali `VERSION` berubah
+(`app/Libraries/DeploymentRefresh.php`). Bila konfigurasi terasa "tidak berubah"
+setelah diedit di mesin pengembang:
 
 ```bash
 php spark cache:clear
