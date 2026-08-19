@@ -9,6 +9,10 @@ agar dapat di-deploy ke **shared hosting PHP 8.2 tanpa Node.js runtime**.
 
 ---
 
+> **Melanjutkan pekerjaan?** Mulai dari **[docs/STATUS.md](docs/STATUS.md)** —
+> keadaan terkini, jebakan yang sudah pernah memakan waktu, dan apa yang belum
+> selesai.
+
 Riwayat perubahan ada di **[CHANGELOG.md](CHANGELOG.md)**.
 
 ## Menyiapkan data master saham
