@@ -85,6 +85,47 @@ final class ReportUiTest extends CIUnitTestCase
         return $user;
     }
 
+    /**
+     * Laba Rugi dapat dibatasi pada satu sekuritas, dan halamannya harus
+     * menyatakan pembatasan itu — angka yang terlihat seperti laba rugi
+     * seluruh entitas padahal bukan adalah salah baca yang mahal.
+     */
+    public function testIncomeStatementCanBeScopedToOneSecuritiesAccount(): void
+    {
+        $result = $this->actingAs($this->owner())
+            ->get('reports/income-statement?securities_account_id=' . $this->accountId);
+
+        $result->assertOK();
+        $result->assertSee('dibatasi pada');
+        $result->assertSee('bukan');
+    }
+
+    /**
+     * Rincian per sekuritas menampilkan rekeningnya dan angka yang bersesuaian.
+     */
+    public function testProfitBySecuritiesPageShowsEachAccount(): void
+    {
+        $result = $this->actingAs($this->owner())->get('reports/profit-by-securities');
+
+        $result->assertOK();
+        $result->assertSee('Laba Rugi per Sekuritas');
+        $result->assertSee('AJAIB');
+        $result->assertSee('Unrealized');
+    }
+
+    /**
+     * Filter sekuritas pada Realized G/L sudah lama didukung controller, tetapi
+     * dahulu tidak pernah muncul di halaman — praktis hanya dapat dipakai
+     * dengan mengetik URL sendiri.
+     */
+    public function testRealizedReportOffersSecuritiesFilter(): void
+    {
+        $result = $this->actingAs($this->owner())->get('reports/realized');
+
+        $result->assertOK();
+        $this->assertStringContainsString('securities_account_id', (string) $result->getBody());
+    }
+
     public function testAllReportPagesRender(): void
     {
         $owner = $this->owner();
@@ -93,6 +134,7 @@ final class ReportUiTest extends CIUnitTestCase
             'reports/balance-sheet', 'reports/income-statement', 'reports/cash-flow',
             'accounting/trial-balance', 'reports/monthly', 'reports/yearly',
             'reports/realized', 'reports/unrealized', 'reports/dividend', 'reports/broker-fee',
+            'reports/profit-by-securities',
         ] as $path) {
             $this->actingAs($owner)->get($path)->assertOK();
         }

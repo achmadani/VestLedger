@@ -17,13 +17,40 @@ $rows = static function (array $items): string {
 };
 ?>
 
+<?php
+$scopeLabel = $accountId > 0 ? ($accounts[$accountId] ?? 'Sekuritas terpilih') : null;
+?>
+
 <?= component('page_header', [
     'title'       => 'Laba Rugi',
-    'subtitle'    => fmt_date($report['from']) . ' — ' . fmt_date($report['to']),
+    'subtitle'    => fmt_date($report['from']) . ' — ' . fmt_date($report['to'])
+        . ($scopeLabel !== null ? ' · ' . $scopeLabel : ''),
     'breadcrumbs' => [['label' => 'Laporan'], ['label' => 'Laba Rugi']],
+    'actions'     => '<a href="' . site_url('reports/profit-by-securities') . '?from=' . urlencode($from)
+        . '&to=' . urlencode($to) . '" class="btn btn-sm btn-ghost">Bandingkan per sekuritas</a>',
 ]) ?>
 
-<?= component('report_range', ['action' => site_url('reports/income-statement'), 'from' => $from, 'to' => $to]) ?>
+<?= component('report_range', [
+    'action' => site_url('reports/income-statement'),
+    'from'   => $from,
+    'to'     => $to,
+    'extra'  => component('form/select', [
+        'name' => 'securities_account_id', 'label' => 'Sekuritas', 'options' => $accounts,
+        'value' => (string) ($accountId ?: ''), 'placeholder' => 'Seluruh sekuritas',
+    ]),
+]) ?>
+
+<?php if ($scopeLabel !== null): ?>
+    <div class="alert alert-warning mb-4 text-sm">
+        <span>
+            Laporan ini dibatasi pada <strong><?= esc($scopeLabel) ?></strong>, memakai dimensi
+            rekening pada setiap baris jurnal. Ini <strong>bukan</strong> laporan keuangan
+            tersendiri &mdash; entitas pelaporannya tetap satu. Angkanya berguna untuk
+            membandingkan kinerja antar sekuritas, bukan untuk disajikan sebagai laba rugi
+            yang berdiri sendiri.
+        </span>
+    </div>
+<?php endif; ?>
 
 <div class="alert alert-info mb-4">
     <?= component('icon', ['name' => 'info', 'class' => 'w-5 h-5 shrink-0']) ?>

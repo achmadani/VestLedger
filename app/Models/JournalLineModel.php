@@ -73,9 +73,14 @@ class JournalLineModel extends Model
      *
      * Satu query agregat untuk seluruh akun sekaligus.
      *
+     * $securitiesAccountId membatasi pada satu rekening sekuritas, memakai
+     * dimensi yang melekat di setiap baris jurnal (§22). Berguna untuk Laba Rugi
+     * per sekuritas; jangan dipakai untuk Neraca, karena baris ekuitas saldo awal
+     * memang tidak bermuatan dimensi sekuritas dan akan hilang dari hasil.
+     *
      * @return list<array{account_id:int, code:string, name:string, type:string, normal_balance:string, total_debit:string, total_credit:string}>
      */
-    public function balancesByAccount(?string $from = null, ?string $to = null): array
+    public function balancesByAccount(?string $from = null, ?string $to = null, ?int $securitiesAccountId = null): array
     {
         $builder = $this->db->table('journal_lines jl')
             ->select('jl.account_id, a.code, a.name, a.type, a.normal_balance,
@@ -83,6 +88,42 @@ class JournalLineModel extends Model
             ->join('journal_entries je', 'je.id = jl.journal_entry_id')
             ->join('accounts a', 'a.id = jl.account_id')
             ->groupBy('jl.account_id, a.code, a.name, a.type, a.normal_balance')
+            ->orderBy('a.code', 'asc');
+
+        if ($from !== null) {
+            $builder->where('je.entry_date >=', $from);
+        }
+
+        if ($to !== null) {
+            $builder->where('je.entry_date <=', $to);
+        }
+
+        if ($securitiesAccountId !== null && $securitiesAccountId > 0) {
+            $builder->where('jl.securities_account_id', $securitiesAccountId);
+        }
+
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Saldo akun nominal (pendapatan & beban) dipecah per rekening sekuritas.
+     *
+     * Dipakai Laba Rugi per Sekuritas (§21.6). Baris yang dimensi sekuritasnya
+     * kosong TETAP dikembalikan dengan securities_account_id = null, bukan
+     * dibuang — kalau ada, rinciannya harus tetap berjumlah sama dengan Laba
+     * Rugi global, dan angka yang tak dapat diatribusikan wajib terlihat.
+     *
+     * @return list<array{securities_account_id:?int, code:string, name:string, type:string, total_debit:string, total_credit:string}>
+     */
+    public function nominalBalancesBySecurities(?string $from = null, ?string $to = null): array
+    {
+        $builder = $this->db->table('journal_lines jl')
+            ->select('jl.securities_account_id, a.code, a.name, a.type,
+                      SUM(jl.debit) AS total_debit, SUM(jl.credit) AS total_credit')
+            ->join('journal_entries je', 'je.id = jl.journal_entry_id')
+            ->join('accounts a', 'a.id = jl.account_id')
+            ->whereIn('a.type', ['revenue', 'expense'])
+            ->groupBy('jl.securities_account_id, a.code, a.name, a.type')
             ->orderBy('a.code', 'asc');
 
         if ($from !== null) {

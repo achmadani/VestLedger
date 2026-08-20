@@ -14,6 +14,27 @@ Naikkan lewat `make release` (patch), atau `make release PART=minor` untuk phase
 
 ## [Belum dirilis]
 
+### Ditambahkan
+- **Laporan Laba Rugi per Sekuritas** (`/reports/profit-by-securities`):
+  satu tabel yang menjajarkan seluruh rekening sekuritas — realized G/L,
+  dividen, fee broker, pajak & levy, biaya administrasi, laba/rugi bersih, dan
+  unrealized. Menjawab "sekuritas mana yang benar-benar menghasilkan", yang
+  tidak dapat dijawab Laba Rugi global.
+  Angkanya diambil dari dimensi `securities_account_id` pada baris jurnal,
+  sehingga rinciannya **selalu berjumlah persis sama** dengan Laba Rugi global;
+  baris nominal tanpa dimensi ditampilkan sebagai "Tanpa sekuritas", bukan
+  dibuang. Unrealized berdiri sebagai kolom terpisah dan tidak menggeser laba,
+  karena ia tidak pernah dijurnal.
+- **Filter sekuritas pada Laba Rugi.** Halaman memberi peringatan bahwa laporan
+  yang difilter adalah rincian, bukan laporan keuangan yang berdiri sendiri.
+
+### Diperbaiki
+- **Filter sekuritas pada Realized Gain/Loss tidak pernah tampil di halaman.**
+  Controller dan service sudah lama mendukungnya, tetapi view hanya menampilkan
+  filter saham — praktis filter itu hanya dapat dipakai dengan mengetik URL
+  sendiri.
+
+
 ### Diperbaiki
 - **Login Google gagal di produksi** dengan "Tidak dapat menghubungi server
   Google". Hosting memblokir `curl_exec`, sedangkan seluruh permintaan keluar

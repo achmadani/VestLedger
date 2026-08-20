@@ -12,9 +12,14 @@
     'action' => site_url('reports/realized'),
     'from'   => $from,
     'to'     => $to,
+    // Filter sekuritas sudah lama didukung controller, tetapi tidak pernah
+    // ditampilkan — praktis hanya dapat dipakai dengan mengetik URL.
     'extra'  => component('form/select', [
         'name' => 'stock_id', 'label' => 'Saham', 'options' => $stocks,
         'value' => (string) ($filters['stock_id'] ?: ''), 'placeholder' => 'Semua',
+    ]) . component('form/select', [
+        'name' => 'securities_account_id', 'label' => 'Sekuritas', 'options' => $accounts,
+        'value' => (string) ($filters['securities_account_id'] ?: ''), 'placeholder' => 'Semua',
     ]),
 ]) ?>
 

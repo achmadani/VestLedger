@@ -280,6 +280,24 @@ menyentuh 3000/3200 berarti pendanaan, selainnya operasi. Transfer antar
 sekuritas tidak muncul sama sekali — kedua sisinya akun kas yang sama sehingga
 saling meniadakan, persis seperti seharusnya (§18).
 
+**Laba Rugi per sekuritas.** Setiap baris jurnal membawa dimensi
+`securities_account_id`, sehingga akun nominal dapat dipecah per rekening
+sekuritas tanpa memecah Chart of Accounts. Dua hal mengikat penyajiannya:
+
+1. Rinciannya **wajib berjumlah persis sama** dengan Laba Rugi global pada
+   rentang yang sama. Baris nominal yang dimensinya kosong dikumpulkan pada
+   baris "Tanpa sekuritas" — ditampilkan, bukan dibuang. Rincian yang diam-diam
+   tidak menjumlah lebih berbahaya daripada tidak ada rincian sama sekali.
+2. Ini **rincian, bukan laporan keuangan tersendiri**. Entitas pelaporannya
+   tetap satu; rekening di beberapa sekuritas adalah beberapa lokasi aset milik
+   pemilik yang sama, bukan beberapa perusahaan. Angkanya untuk membandingkan
+   kinerja antar sekuritas, bukan untuk disajikan sebagai laba rugi yang
+   berdiri sendiri.
+
+Unrealized tidak ikut dijumlahkan ke laba pada rincian itu: ia tidak pernah
+dijurnal dan sifatnya potret pada satu tanggal, bukan hasil sepanjang periode
+(§13, §14). Ia disajikan sebagai kolom terpisah.
+
 **Posisi historis.** Laporan per tanggal lampau memakai posisi PADA TANGGAL ITU,
 diturunkan dari dimensi akun 1100 di buku besar (nilai) dan dari transaksi
 (jumlah lembar). Tabel `stock_positions` hanya menyimpan keadaan terkini dan

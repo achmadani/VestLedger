@@ -73,6 +73,7 @@ class Navigation extends BaseConfig
                 'items' => [
                     ['label' => 'Neraca', 'route' => '/reports/balance-sheet', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Laba Rugi', 'route' => '/reports/income-statement', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
+                    ['label' => 'Laba Rugi per Sekuritas', 'route' => '/reports/profit-by-securities', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Arus Kas', 'route' => '/reports/cash-flow', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Laporan Bulanan', 'route' => '/reports/monthly', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],
                     ['label' => 'Laporan Tahunan', 'route' => '/reports/yearly', 'permission' => 'report.view', 'enabled' => true, 'phase' => null],

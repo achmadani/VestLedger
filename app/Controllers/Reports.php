@@ -36,11 +36,41 @@ class Reports extends BaseController
     {
         [$from, $to] = $this->range();
 
+        $accountId = $this->idInput('securities_account_id');
+
         return view('reports/income_statement', [
             'pageTitle' => 'Laba Rugi',
             'from'      => $from,
             'to'        => $to,
-            'report'    => service('financialStatements')->incomeStatement($from, $to),
+            'accountId' => $accountId,
+            'accounts'  => (new SecuritiesAccountModel())->options(),
+            'report'    => service('financialStatements')->incomeStatement($from, $to, $accountId),
+        ]);
+    }
+
+    /**
+     * Laba Rugi per sekuritas (§21.6).
+     *
+     * Menjawab pertanyaan yang tidak dapat dijawab Laba Rugi global: rekening
+     * mana yang benar-benar menghasilkan, dan berapa biayanya di masing-masing.
+     */
+    public function profitBySecurities(): string
+    {
+        [$from, $to] = $this->range();
+
+        // Unrealized tidak ada di buku besar, jadi diambil dari potret portofolio
+        // pada tanggal akhir periode — bukan sepanjang periode.
+        $unrealized = [];
+
+        foreach (service('portfolio')->snapshot($to)['by_securities'] as $row) {
+            $unrealized[$row['securities_account_id']] = $row['unrealized'];
+        }
+
+        return view('reports/profit_by_securities', [
+            'pageTitle' => 'Laba Rugi per Sekuritas',
+            'from'      => $from,
+            'to'        => $to,
+            'report'    => service('financialStatements')->profitBySecurities($from, $to, $unrealized),
         ]);
     }
 

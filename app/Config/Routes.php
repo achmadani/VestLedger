@@ -141,6 +141,7 @@ $routes->group('', ['filter' => 'session'], static function (RouteCollection $ro
     $routes->group('reports', ['filter' => 'permission:report.view'], static function (RouteCollection $routes): void {
         $routes->get('balance-sheet', 'Reports::balanceSheet');
         $routes->get('income-statement', 'Reports::incomeStatement');
+        $routes->get('profit-by-securities', 'Reports::profitBySecurities');
         $routes->get('cash-flow', 'Reports::cashFlow');
         $routes->get('monthly', 'Reports::monthly');
         $routes->get('yearly', 'Reports::yearly');

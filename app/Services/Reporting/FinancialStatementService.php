@@ -9,6 +9,7 @@ use App\Enums\AccountType;
 use App\Enums\BalanceSide;
 use App\Models\AccountModel;
 use App\Models\JournalLineModel;
+use App\Models\SecuritiesAccountModel;
 use App\ValueObjects\Money;
 
 /**
@@ -23,7 +24,147 @@ class FinancialStatementService
     public function __construct(
         private JournalLineModel $lines,
         private AccountModel $accounts,
+        private SecuritiesAccountModel $securitiesAccounts,
     ) {
+    }
+
+    /**
+     * Laba Rugi dipecah per rekening sekuritas (§21.6).
+     *
+     * Angka realisasi diambil dari buku besar, memakai dimensi securities_account_id
+     * yang melekat di setiap baris jurnal — jadi rinciannya SELALU berjumlah sama
+     * dengan Laba Rugi global untuk rentang yang sama. Baris jurnal nominal yang
+     * dimensinya kosong dikumpulkan pada baris "Tanpa sekuritas", bukan dibuang:
+     * rincian yang diam-diam tidak menjumlah adalah rincian yang menyesatkan.
+     *
+     * Unrealized SENGAJA tidak dijumlahkan ke dalam laba: ia tidak pernah masuk
+     * buku besar (§13, §14) dan sifatnya potret pada satu tanggal, bukan hasil
+     * sepanjang periode. Ia disajikan sebagai kolom terpisah, dinilai pada $to.
+     *
+     * @return array{from:string, to:string, rows:list<array<string, mixed>>,
+     *               totals:array<string, mixed>, has_unattributed:bool}
+     */
+    public function profitBySecurities(string $from, string $to, ?array $unrealizedByAccount = null): array
+    {
+        $rows = [];
+
+        foreach ($this->securitiesAccounts->withSecurities() as $account) {
+            $rows[$account->id] = $this->emptyProfitRow(
+                $account->id,
+                trim(((string) ($account->securities_code ?? '')) !== ''
+                    ? $account->securities_code . ' — ' . $account->label
+                    : $account->label),
+                (string) ($account->securities_name ?? ''),
+            );
+        }
+
+        foreach ($this->lines->nominalBalancesBySecurities($from, $to) as $line) {
+            $id = $line['securities_account_id'] === null ? 0 : (int) $line['securities_account_id'];
+
+            $rows[$id] ??= $this->emptyProfitRow(null, 'Tanpa sekuritas', 'Baris jurnal tanpa dimensi rekening');
+
+            $debit  = Money::of((string) $line['total_debit']);
+            $credit = Money::of((string) $line['total_credit']);
+            $type   = AccountType::from($line['type']);
+
+            // Saldo dihitung menurut sisi normal akunnya, sehingga pembalikan
+            // (yang mencatat di sisi berlawanan) otomatis menguranginya.
+            $amount = $type === AccountType::Revenue
+                ? $credit->subtract($debit)
+                : $debit->subtract($credit);
+
+            if ($type === AccountType::Revenue) {
+                $rows[$id]['revenue'] = $rows[$id]['revenue']->add($amount);
+            } else {
+                $rows[$id]['expense'] = $rows[$id]['expense']->add($amount);
+            }
+
+            $bucket = match ($line['code']) {
+                AccountCode::RealizedGain->value          => 'realized_gain',
+                AccountCode::RealizedLoss->value          => 'realized_loss',
+                AccountCode::DividendIncome->value        => 'dividend',
+                AccountCode::BrokerFee->value             => 'broker_fee',
+                AccountCode::TaxAndLevy->value            => 'tax_levy',
+                AccountCode::AdministrativeExpense->value => 'admin_expense',
+                default                                   => null,
+            };
+
+            if ($bucket !== null) {
+                $rows[$id][$bucket] = $rows[$id][$bucket]->add($amount);
+            }
+        }
+
+        foreach ($rows as $id => $row) {
+            $rows[$id]['realized_net'] = $row['realized_gain']->subtract($row['realized_loss']);
+            $rows[$id]['net_profit']   = $row['revenue']->subtract($row['expense']);
+            $rows[$id]['unrealized']   = $unrealizedByAccount[$id] ?? Money::zero();
+        }
+
+        // Rekening yang tidak bergerak sepanjang periode dan tidak menyimpan
+        // posisi apa pun hanya menambah baris kosong.
+        $rows = array_filter(
+            $rows,
+            static fn (array $row): bool => ! $row['revenue']->isZero()
+                || ! $row['expense']->isZero()
+                || ! $row['unrealized']->isZero(),
+        );
+
+        $unattributed = isset($rows[0]);
+
+        // "Tanpa sekuritas" selalu di bawah: ia bukan rekening, melainkan sisa.
+        uasort($rows, static fn (array $a, array $b): int => ($a['securities_account_id'] === null ? 1 : 0)
+            <=> ($b['securities_account_id'] === null ? 1 : 0));
+
+        return [
+            'from'             => $from,
+            'to'               => $to,
+            'rows'             => array_values($rows),
+            'totals'           => $this->sumProfitRows($rows),
+            'has_unattributed' => $unattributed,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyProfitRow(?int $accountId, string $label, string $securitiesName): array
+    {
+        return [
+            'securities_account_id' => $accountId,
+            'label'                 => $label,
+            'securities_name'       => $securitiesName,
+            'realized_gain'         => Money::zero(),
+            'realized_loss'         => Money::zero(),
+            'realized_net'          => Money::zero(),
+            'dividend'              => Money::zero(),
+            'broker_fee'            => Money::zero(),
+            'tax_levy'              => Money::zero(),
+            'admin_expense'         => Money::zero(),
+            'revenue'               => Money::zero(),
+            'expense'               => Money::zero(),
+            'net_profit'            => Money::zero(),
+            'unrealized'            => Money::zero(),
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     *
+     * @return array<string, Money>
+     */
+    private function sumProfitRows(array $rows): array
+    {
+        $keys   = ['realized_gain', 'realized_loss', 'realized_net', 'dividend', 'broker_fee',
+            'tax_levy', 'admin_expense', 'revenue', 'expense', 'net_profit', 'unrealized'];
+        $totals = array_fill_keys($keys, Money::zero());
+
+        foreach ($rows as $row) {
+            foreach ($keys as $key) {
+                $totals[$key] = $totals[$key]->add($row[$key]);
+            }
+        }
+
+        return $totals;
     }
 
     /**
@@ -78,7 +219,7 @@ class FinancialStatementService
      *
      * @return array<string, mixed>
      */
-    public function incomeStatement(string $from, string $to): array
+    public function incomeStatement(string $from, string $to, ?int $securitiesAccountId = null): array
     {
         $revenue  = [];
         $expenses = [];
@@ -86,7 +227,7 @@ class FinancialStatementService
         $totalRevenue = Money::zero();
         $totalExpense = Money::zero();
 
-        foreach ($this->lines->balancesByAccount($from, $to) as $row) {
+        foreach ($this->lines->balancesByAccount($from, $to, $securitiesAccountId) as $row) {
             $type = AccountType::from($row['type']);
 
             if ($type->isReal()) {
@@ -120,13 +261,14 @@ class FinancialStatementService
         }
 
         return [
-            'from'          => $from,
-            'to'            => $to,
-            'revenue'       => $revenue,
-            'expenses'      => $expenses,
-            'total_revenue' => $totalRevenue,
-            'total_expense' => $totalExpense,
-            'net_profit'    => $totalRevenue->subtract($totalExpense),
+            'from'                  => $from,
+            'to'                    => $to,
+            'securities_account_id' => $securitiesAccountId,
+            'revenue'               => $revenue,
+            'expenses'              => $expenses,
+            'total_revenue'         => $totalRevenue,
+            'total_expense'         => $totalExpense,
+            'net_profit'            => $totalRevenue->subtract($totalExpense),
         ];
     }
 

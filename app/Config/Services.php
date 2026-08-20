@@ -230,7 +230,7 @@ class Services extends BaseService
             return static::getSharedInstance('financialStatements');
         }
 
-        return new FinancialStatementService(new JournalLineModel(), new AccountModel());
+        return new FinancialStatementService(new JournalLineModel(), new AccountModel(), new SecuritiesAccountModel());
     }
 
     public static function periodicReports(bool $getShared = true): PeriodicReportService
